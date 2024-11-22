@@ -16,19 +16,19 @@ Link: [https://github.com/cohamil/Orechard-Outlet](https://github.com/cohamil/Or
 
 **1**. Tell us about what engines, libraries, frameworks, and or platforms you intend to use, and give us a tiny bit of detail about why your team chose those.
 
-	Phaser, we chose this framework because we all have prior experience with Phaser in CMPM 120\. We liked the tools that are available with Phaser and believe that it is suitable for this project. Additionally, because we’ve been using TypeScript for this class, we wanted to pick a framework that supported this language.  
+* Phaser, we chose this framework because we all have prior experience with Phaser in CMPM 120\. We liked the tools that are available with Phaser and believe that it is suitable for this project. Additionally, because we’ve been using TypeScript for this class, we wanted to pick a framework that supported this language.  
 
 **2**. Tell us programming languages (e.g. TypeScript) and data languages (e.g. JSON) you team expects to use and why you chose them. Presumably you’ll just be using the languages expected by your previously chosen engine/platform.
 
-	Our team will be using TypeScript to code this game and use JSON to contain object data. Phaser 3 natively supports Javascript, but the developer created supporting build and definitions files which allow for coding in Typescript. Since Typescript is kind of like an extension of Javascript, JSON is completely compatible with the language. 
+* Our team will be using TypeScript to code this game and use JSON to contain object data. Phaser 3 natively supports Javascript, but the developer created supporting build and definitions files which allow for coding in Typescript. Since Typescript is kind of like an extension of Javascript, JSON is completely compatible with the language. 
 
 **3**. Tell us about which tools you expect to use in the process of authoring your project. You might name the IDE for writing code, the image editor for creating visual assets, or the 3D editor you will use for building your scene. Again, briefly tell us why you made these choices. Maybe one of your teammates feels especially skilled in that tool or it represents something you all want to learn about.
 
-	We decided to use VS Code to write code for our project since it is the IDE that we are all most familiar and comfortable with. For our visual assets, we will be using a mix of GIMP and Aesprite because it is what our groupmates feel most confident in.
+* We decided to use VS Code to write code for our project since it is the IDE that we are all most familiar and comfortable with. For our visual assets, we will be using a mix of GIMP and Aesprite because it is what our groupmates feel most confident in.
 
 **4**. Tell us about your alternate platform choice. Remember, your alternate platform must differ from your primary platform by either changing the primary language used or the engine/library/framework used for building your user interface.
 
-	For our alternate choice, we decided to switch our desired language from TypeScript to JavaScript. Our reasoning behind this choice has to do with our desire to continue to use Phaser throughout the development of our project. By switching to another language that is supported by Phaser and similar to our original language, we believe that this alternative will be a smooth transition.
+* For our alternate choice, we decided to switch our desired language from TypeScript to JavaScript. Our reasoning behind this choice has to do with our desire to continue to use Phaser throughout the development of our project. By switching to another language that is supported by Phaser and similar to our original language, we believe that this alternative will be a smooth transition.
 
 #### **Outlook**
 
