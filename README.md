@@ -45,3 +45,6 @@ Link: [https://github.com/cohamil/Orechard-Outlet](https://github.com/cohamil/Or
 * What are you hoping to learn by approaching the project with the tools and materials you selected above?  
   * We hope to learn more practical ways to implement common game design patterns in real examples where we start off from scratch (as opposed to given templates in the Demo assignments). None of us have had the pleasure of creating a systemic game like this, so we are all reveling the the opportunity. We have all coded in Phaser in CMPM120, but not to create a game like this. In all, we all hope to learn more about game programming through this experience.
 
+#### Credits
+https://github.com/phaserjs/template-esbuild-ts
+* Template used for setting up Phaser3 project with Typescript.
