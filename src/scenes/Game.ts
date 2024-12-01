@@ -10,6 +10,12 @@ export class Game extends Scene {
     // New properties for cell resources
     private cellResources!: CellResource[][];
 
+    // Constants
+    private MAX_GROWTH_LEVEL = 4;
+    private MAXED_PLANTS_WIN_CONDITION = 3;
+    private plantSpecies = ['0xDA70D6', '0x4CBB17', '0xF28C28']; // Lilac, Daisy, Tulip
+    private numMaxedPlants = 0;
+
     constructor() {
         super('Game');
     }
@@ -23,6 +29,7 @@ export class Game extends Scene {
 
         // Create the player first
         this.createPlayer();
+        this.movePlayerTo(0, 0);
 
         // Draw the 2D grid with resources
         this.drawGrid();
@@ -70,7 +77,8 @@ export class Game extends Scene {
 
         return {
             sun: hasSun,
-            water: waterLevel
+            water: waterLevel,
+            plant: null,
         };
     }
 
@@ -82,6 +90,19 @@ export class Game extends Scene {
         for (let row = 0; row < this.gridSize; row++) {
             for (let col = 0; col < this.gridSize; col++) {
                 const currentCell = this.cellResources[row][col];
+
+                // Plant growth mechanics
+                if (currentCell.plant) {
+                    this.updatePlantGrowth(row, col);
+                }
+
+                // Check for the win condition
+                if (this.numMaxedPlants === this.MAXED_PLANTS_WIN_CONDITION) {
+                    console.log('You win!');
+                    this.scene.start('GameOver');
+
+                    return;
+                }
 
                 // Sun mechanics
                 if (currentCell.sun) {
@@ -108,6 +129,65 @@ export class Game extends Scene {
 
         // Redraw the grid to reflect new resources
         this.drawGrid();
+    }
+
+    // Update plant growth based on resources
+    private updatePlantGrowth(row: number, col: number) {
+        const cellResource = this.cellResources[row][col];
+        const plant = cellResource.plant;
+
+        if (!plant || !cellResource.sun || plant.growthLevel === this.MAX_GROWTH_LEVEL) return;
+
+        switch (plant.growthLevel) {
+            // Any amount of water is enough
+            case 1:
+                if (cellResource.water > 0) {
+                    plant.growthLevel += 1;
+                    cellResource.water -= 1; // Consume water
+
+                    console.log(`Plant at (${row}, ${col}) grew to level ${plant.growthLevel}`);
+                }
+                break; 
+            // Needs at least 2 water
+            case 2:
+                if (cellResource.water >= 2) {
+                    plant.growthLevel += 1;
+                    cellResource.water -= 1; // Consume water
+
+                    console.log(`Plant at (${row}, ${col}) grew to level ${plant.growthLevel}`);
+                }
+                break;
+            // Needs at least 2 water and no adjacent flowers
+            case 3:
+                if (cellResource.water >= 2 && this.checkAdjacentFlowers(row, col)) {
+                    plant.growthLevel += 1;
+                    cellResource.water -= 1; // Consume water
+                    this.numMaxedPlants += 1;
+
+                    console.log(`Plant at (${row}, ${col}) grew to level ${plant.growthLevel}`);
+                }
+                break;
+        }
+    }
+
+    // Check for adjacent flowers to prevent growth
+    private checkAdjacentFlowers(row: number, col: number): boolean {
+        const adjacentCells = [
+            { row: row - 1, col }, // Up
+            { row: row + 1, col }, // Down
+            { row, col: col - 1 }, // Left
+            { row, col: col + 1 }, // Right
+        ];
+
+        for (const cell of adjacentCells) {
+            if (cell.row >= 0 && cell.row < this.gridSize &&
+                cell.col >= 0 && cell.col < this.gridSize) {
+                const adjacentPlant = this.cellResources[cell.row][cell.col].plant;
+                if (adjacentPlant) return false;
+            }
+        }
+
+        return true;
     }
 
     private drawGrid() {
@@ -163,6 +243,20 @@ export class Game extends Scene {
                         .setOrigin(0)
                         .setStrokeStyle(1, 0x000000);
                 }
+
+                // Draw plant if present
+                if (cellResource.plant) {
+                    const plant = cellResource.plant;
+                    const plantColor = plant.species;
+                    const plantSize = (this.cellSize * 0.4) * (plant.growthLevel / this.MAX_GROWTH_LEVEL);
+                    const plantX = x + (this.cellSize - plantSize) / 2;
+                    const plantY = y + (this.cellSize - plantSize) / 2;
+
+                    this.add
+                        .rectangle(plantX, plantY, plantSize, plantSize, parseInt(plantColor))
+                        .setOrigin(0)
+                        .setStrokeStyle(1, 0x000000);
+                }
             }
         }
 
@@ -214,18 +308,32 @@ export class Game extends Scene {
             return;
         }
     
-        // WASD or Arrow Keys
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.left) || Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[65])) {
+        // WASD Keys for Movement
+        if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[65])) {
             if (col > 0) this.movePlayerTo(row, col - 1); // Move left
         }
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.right) || Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[68])) {
+        if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[68])) {
             if (col < this.gridSize - 1) this.movePlayerTo(row, col + 1); // Move right
         }
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.up) || Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[87])) {
+        if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[87])) {
             if (row > 0) this.movePlayerTo(row - 1, col); // Move up
         }
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.down) || Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[83])) {
+        if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[83])) {
             if (row < this.gridSize - 1) this.movePlayerTo(row + 1, col); // Move down
+        }
+
+        // Arrow Keys for Plant Interaction
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
+            if (col > 0) this.handlePlantInteraction(row, col - 1);
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
+            if (col < this.gridSize - 1) this.handlePlantInteraction(row, col + 1);
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+            if (row > 0) this.handlePlantInteraction(row - 1, col);
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+            if (row < this.gridSize - 1) this.handlePlantInteraction(row + 1, col);
         }
     }
 
@@ -241,10 +349,58 @@ export class Game extends Scene {
         this.player.setPosition(x, y);
         this.playerPosition = { row, col };
     }
+
+    // Method to handle plant interaction
+    private handlePlantInteraction(row: number, col: number) {
+        const cellResource = this.cellResources[row][col];
+        
+        // Plant a new plant if the cell is empty
+        if (!cellResource.plant) {
+            this.sowPlant(row, col);
+        } 
+        // Harvest the plant if the cell has a plant
+        else {
+            this.harvestPlant(row, col);
+        }
+
+        // Redraw the grid to reflect plant changes
+        this.drawGrid();
+    }
+
+    // Method to plant a new plant in a cell
+    private sowPlant(row: number, col: number) {
+        const cellResource = this.cellResources[row][col];
+
+        // Randomly select a plant species
+        const plantSpeciesIndex = Math.floor(Math.random() * this.plantSpecies.length);
+        const newPlantSpecies = this.plantSpecies[plantSpeciesIndex];
+        const newPlant: Plant = {
+            species: newPlantSpecies,
+            growthLevel: 1,
+        };
+        cellResource.plant = newPlant;
+
+        console.log(`New plant sown: ${newPlantSpecies}`);
+    }
+
+    // Method to harvest a plant from a cell
+    private harvestPlant(row: number, col: number) {
+        const cellResource = this.cellResources[row][col];
+
+        // Harvest the plant and remove it from the cell
+        cellResource.plant = null;
+    }
 }
 
 // Interface to define cell resource structure
 interface CellResource {
     sun: boolean;
     water: number; // 0-3 water levels
+    plant: Plant | null; // Plant object or null if no plant
+}
+
+// Interface to define plant structure
+interface Plant {
+    species: string;
+    growthLevel: number; // 1-4 growth levels
 }
