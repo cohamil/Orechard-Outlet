@@ -15,6 +15,7 @@ export class Game extends Scene {
     private MAXED_PLANTS_WIN_CONDITION = 3;
     private plantSpecies = ['0xDA70D6', '0x4CBB17', '0xF28C28']; // Lilac, Daisy, Tulip
     private numMaxedPlants = 0;
+    
 
     constructor() {
         super('Game');
@@ -46,6 +47,9 @@ export class Game extends Scene {
         // Add a key listener for advancing turns
         const turnKey = this.input.keyboard.addKey('T');
         turnKey.on('down', this.advanceTurn, this);
+
+        // Set Win Condition (3 to win)
+        this.numMaxedPlants = 0;
     }
 
     update() {
@@ -85,6 +89,7 @@ export class Game extends Scene {
     // Advance turn with new resource mechanics
     private advanceTurn() {
         console.log('Turn advanced!');
+        //console.log(`numMaxedPlants: ${this.numMaxedPlants}`)
         
         // Update resources for each cell
         for (let row = 0; row < this.gridSize; row++) {
