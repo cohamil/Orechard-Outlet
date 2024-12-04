@@ -56,13 +56,10 @@ export class Game extends Scene {
         Added 'T' for turn advancement
         Added 'Z' for undo
         Added 'X' for redo
-        Added 'M' for manual save
         Added 'L' for load
         */
         
         // Add key listeners for save/load
-        const saveKey = this.input.keyboard.addKey('M');
-        saveKey.on('down', this.saveGame, this);
         const loadKey = this.input.keyboard.addKey('L');
         loadKey.on('down', this.showSaveSlots, this);
         
@@ -84,35 +81,98 @@ export class Game extends Scene {
 
     // Check for auto-save when game starts
     private checkAutoSave() {
-        const autoSave = localStorage.getItem(this.autoSaveKey);
-        if (autoSave) {
-            const confirmLoad = confirm('An auto-save was found. Do you want to continue your previous game?');
-            if (confirmLoad) {
-                this.loadGameState(JSON.parse(autoSave));
+        try {
+            const autoSave = localStorage.getItem(this.autoSaveKey);
+            console.log('Raw auto-save data:', autoSave); // Debugging line
+            if (autoSave) {
+                const confirmLoad = confirm('An auto-save was found. Do you want to continue your previous game?');
+                if (confirmLoad) {
+                    try {
+                        const savedState = JSON.parse(autoSave);
+                        console.log('Parsed auto-save state:', savedState); // Debugging line
+    
+                        if (this.isValidGameState(savedState)) {
+                            this.loadGameState(savedState);
+                        } else {
+                            throw new Error('Invalid game state detected in auto-save.');
+                        }
+                    } catch (parseError) {
+                        console.error('Error parsing auto-save:', parseError);
+                        alert('Failed to load auto-save due to data corruption. Starting a new game.');
+                    }
+                }
             }
+        } catch (error) {
+            console.error('Error during auto-save check:', error);
+            alert('Failed to load auto-save. Starting a new game.');
         }
     }
+    
+
+    private isValidGameState(state: any): state is GameState {
+        return (
+            state &&
+            // Validate grid structure
+            Array.isArray(state.grid) &&
+            state.grid.every((row: any) => 
+                Array.isArray(row) &&
+                row.every((cell: any) => 
+                    cell &&
+                    typeof cell.sun === 'boolean' &&
+                    typeof cell.water === 'number' &&
+                    (cell.plant === null || 
+                        (typeof cell.plant === 'object' && 
+                         typeof cell.plant.species === 'string' && 
+                         typeof cell.plant.growthLevel === 'number'))
+                )
+            ) &&
+            // Validate player position
+            state.playerPosition &&
+            typeof state.playerPosition.row === 'number' &&
+            typeof state.playerPosition.col === 'number' &&
+            // Validate undo/redo stacks
+            Array.isArray(state.undoable) &&
+            Array.isArray(state.redoable) &&
+            // Validate maxed plants count
+            typeof state.numMaxedPlants === 'number'
+        );
+    }
+    
 
     // Save game to a specific slot or auto-save
     private saveGame(slot?: string) {
         const gameState: GameState = {
-            grid: this.grid,
-            playerPosition: this.playerPosition,
+            grid: JSON.parse(JSON.stringify(this.grid)), // Deep copy to ensure no references
+            playerPosition: { ...this.playerPosition },
             numMaxedPlants: this.numMaxedPlants,
-            undoable: this.undoable,
-            redoable: this.redoable
+            undoable: JSON.parse(JSON.stringify(this.undoable)), // Deep copy
+            redoable: JSON.parse(JSON.stringify(this.redoable)), // Deep copy
         };
-
-        if (!slot) {
-            // Auto-save
-            localStorage.setItem(this.autoSaveKey, JSON.stringify(gameState));
-            alert('Auto-save completed.');
-        } else {
-            // Manual save to a specific slot
-            localStorage.setItem(this.saveSlotPrefix + slot, JSON.stringify(gameState));
-            alert(`Game saved to slot ${slot}.`);
+    
+        const serializedState = JSON.stringify(gameState, (key, value) => {
+            // Custom replacer to help debug serialization
+            if (typeof value === 'object' && value !== null) {
+                console.log(`Serializing key: ${key}`, value);
+            }
+            return value;
+        }, 2); // The '2' adds indentation for readability
+    
+        console.log('Full serialized save data:', serializedState);
+    
+        try {
+            if (!slot) {
+                localStorage.setItem(this.autoSaveKey, serializedState);
+            } else {
+                localStorage.setItem(this.saveSlotPrefix + slot, serializedState);
+                alert(`Game saved to ${slot}.`);
+            }
+        } catch (error) {
+            console.error('Error saving game state:', error);
+            alert('Failed to save game state. Check local storage permissions.');
         }
     }
+    
+    
 
     // Show save slots for manual save/load
     private showSaveSlots() {
@@ -141,19 +201,75 @@ export class Game extends Scene {
 
     // Load game state (for both auto-save and manual load)
     private loadGameState(savedState: GameState) {
-        // Restore game state
-        this.grid = savedState.grid;
-        this.playerPosition = savedState.playerPosition;
-        this.numMaxedPlants = savedState.numMaxedPlants;
-        this.undoable = savedState.undoable || [];
-        this.redoable = savedState.redoable || [];
-
+        console.log('Full saved state:', savedState);
+    
+        // Detailed validation of each cell
+        const validateGrid = (grid: Grid): boolean => {
+            for (let row = 0; row < grid.length; row++) {
+                for (let col = 0; col < grid[row].length; col++) {
+                    const cell = grid[row][col];
+                    
+                    // Validate cell structure
+                    if (typeof cell.sun !== 'boolean') {
+                        console.error(`Invalid sun value at (${row}, ${col})`, cell);
+                        return false;
+                    }
+                    
+                    if (typeof cell.water !== 'number') {
+                        console.error(`Invalid water value at (${row}, ${col})`, cell);
+                        return false;
+                    }
+                    
+                    // Validate plant if exists
+                    if (cell.plant !== null) {
+                        if (typeof cell.plant.species !== 'string') {
+                            console.error(`Invalid plant species at (${row}, ${col})`, cell.plant);
+                            return false;
+                        }
+                        
+                        if (typeof cell.plant.growthLevel !== 'number') {
+                            console.error(`Invalid plant growth level at (${row}, ${col})`, cell.plant);
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        };
+    
+        // Validate grid structure
+        if (!validateGrid(savedState.grid)) {
+            console.error('Grid validation failed');
+            alert('Failed to load saved game due to invalid grid data.');
+            return;
+        }
+    
+        // Deep copy the grid with additional validation
+        this.grid = JSON.parse(JSON.stringify(savedState.grid));
+    
+        // Additional logging and checks
+        console.log('Loaded grid:', this.grid);
+        validateGrid(this.grid);
+    
+        this.playerPosition = { ...savedState.playerPosition };
+        this.numMaxedPlants = savedState.numMaxedPlants || 0;
+        
+        // Deep copy undo/redo stacks
+        this.undoable = JSON.parse(JSON.stringify(savedState.undoable || []));
+        this.redoable = JSON.parse(JSON.stringify(savedState.redoable || []));
+        
+        // Recreate player if it doesn't exist
+        if (!this.player) {
+            this.createPlayer();
+        }
+        
         // Redraw grid and reposition player
         this.drawGrid();
         this.repositionPlayer();
-
+        
         alert('Game loaded successfully.');
     }
+    
 
     update() {
         // Handle player movement
@@ -302,25 +418,29 @@ export class Game extends Scene {
     }
 
     private drawGrid() {
+        console.log('Drawing grid - full grid state:', JSON.stringify(this.grid, null, 2));
+    
         const startX = (this.cameras.main.width - this.gridSize * this.cellSize) / 2;
         const startY = (this.cameras.main.height - this.gridSize * this.cellSize) / 2;
-
+    
         // Destroy existing grid elements, but keep the player
         this.children.list
             .filter(child => child !== this.player)
             .forEach(child => child.destroy());
-
+    
         for (let row = 0; row < this.gridSize; row++) {
             for (let col = 0; col < this.gridSize; col++) {
                 const x = startX + col * this.cellSize;
                 const y = startY + row * this.cellSize;
-
+    
                 // Get cell resources
                 const cellResource = this.grid[row][col];
-
+                console.log(`Rendering cell (${row}, ${col}):`, cellResource);
+    
                 // Determine cell color based on resources
                 let cellColor = 0xcccccc; // Default gray
                 if (cellResource.sun && cellResource.water) {
+                    console.log('Cell has both sun and water');
                     // If both sun and water, create a diagonal split cell
                     const sunPath = this.add
                         .polygon(x, y, [
@@ -340,13 +460,15 @@ export class Game extends Scene {
                         .setOrigin(0)
                         .setStrokeStyle(1, 0x000000);
                 } else if (cellResource.sun) {
+                    console.log('Cell has sun');
                     // Sun-only cell (yellow)
                     cellColor = 0xffff00;
                 } else if (cellResource.water) {
+                    console.log('Cell has water');
                     // Water cell (blue with intensity based on water level)
                     cellColor = this.getWaterColor(cellResource.water);
                 }
-
+    
                 // Draw the base cell if not split
                 if (!cellResource.sun || !cellResource.water) {
                     this.add
@@ -354,15 +476,17 @@ export class Game extends Scene {
                         .setOrigin(0)
                         .setStrokeStyle(1, 0x000000);
                 }
-
+    
                 // Draw plant if present
                 if (cellResource.plant) {
                     const plant = cellResource.plant;
+                    console.log(`Plant in cell (${row}, ${col}):`, plant);
+                    
                     const plantColor = plant.species;
                     const plantSize = (this.cellSize * 0.4) * (plant.growthLevel / this.MAX_GROWTH_LEVEL);
                     const plantX = x + (this.cellSize - plantSize) / 2;
                     const plantY = y + (this.cellSize - plantSize) / 2;
-
+    
                     this.add
                         .rectangle(plantX, plantY, plantSize, plantSize, parseInt(plantColor))
                         .setOrigin(0)
@@ -370,7 +494,7 @@ export class Game extends Scene {
                 }
             }
         }
-
+    
         // Reposition the player after redrawing grid
         this.repositionPlayer();
     }
@@ -402,13 +526,20 @@ export class Game extends Scene {
     private repositionPlayer() {
         const startX = (this.cameras.main.width - this.gridSize * this.cellSize) / 2;
         const startY = (this.cameras.main.height - this.gridSize * this.cellSize) / 2;
-
+    
+        // Ensure the player exists before attempting to reposition
+        if (!this.player) {
+            console.error('Player object is undefined during repositioning.');
+            return;
+        }
+    
         // Reposition the player
         const x = startX + this.playerPosition.col * this.cellSize + this.cellSize / 2;
         const y = startY + this.playerPosition.row * this.cellSize + this.cellSize / 2;
-
+    
         this.player.setPosition(x, y);
     }
+    
 
     private handlePlayerMovement() {
         const { row, col } = this.playerPosition;
