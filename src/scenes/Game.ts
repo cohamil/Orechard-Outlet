@@ -4,11 +4,13 @@ export class Game extends Scene {
     private gridSize: number = 10; // Number of rows and columns
     private cellSize: number = 64; // Size of each cell in pixels
     private player!: Phaser.GameObjects.Rectangle; // The player's visual representation
-    private playerPosition: { row: number; col: number } = { row: 0, col: 0 }; // Tracks the player's position on the grid
+    private playerPosition: Coordinate = { row: 0, col: 0 }; // Tracks the player's position on the grid
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+    private undoable: (Grid | Coordinate)[];   // Tracks undoable actions. If needed, can be changed to an any[] array
+    private redoable: (Grid | Coordinate)[];    // Tracks redoable actions.  ""
     
     // New properties for cell resources
-    private cellResources!: CellResource[][];
+    private grid!: Grid;
 
     // Constants
     private MAX_GROWTH_LEVEL = 4;
@@ -30,7 +32,7 @@ export class Game extends Scene {
 
         // Create the player first
         this.createPlayer();
-        this.movePlayerTo(0, 0);
+        this.movePlayerTo(this.playerPosition);
 
         // Draw the 2D grid with resources
         this.drawGrid();
@@ -42,11 +44,24 @@ export class Game extends Scene {
 
         // Set up keyboard input
         this.cursors = this.input.keyboard.createCursorKeys();
-        this.input.keyboard.addKeys('W,S,A,D,T'); // Added 'T' for turn advancement
+        this.input.keyboard.addKeys('W,S,A,D,T,X'); 
+        /*
+        Added 'T' for turn advancement
+        Added 'Z' for undo
+        Added 'X' for redo
+        */
         
         // Add a key listener for advancing turns
         const turnKey = this.input.keyboard.addKey('T');
         turnKey.on('down', this.advanceTurn, this);
+
+        // Add key listeners for undo/redo
+        this.undoable = [];
+        const undoKey = this.input.keyboard.addKey('Z');
+        undoKey.on('down', this.undo, this);
+        this.redoable = [];
+        const redoKey = this.input.keyboard.addKey('X');
+        redoKey.on('down', this.redo, this)
 
         // Set Win Condition (3 to win)
         this.numMaxedPlants = 0;
@@ -59,11 +74,11 @@ export class Game extends Scene {
 
     // Initialize cell resources with random generation
     private initializeCellResources() {
-        this.cellResources = [];
+        this.grid = [];
         for (let row = 0; row < this.gridSize; row++) {
-            this.cellResources[row] = [];
+            this.grid[row] = [];
             for (let col = 0; col < this.gridSize; col++) {
-                this.cellResources[row][col] = this.generateCellResources();
+                this.grid[row][col] = this.generateCellResources();
             }
         }
     }
@@ -88,13 +103,13 @@ export class Game extends Scene {
 
     // Advance turn with new resource mechanics
     private advanceTurn() {
-        console.log('Turn advanced!');
-        //console.log(`numMaxedPlants: ${this.numMaxedPlants}`)
-        
+        this.undoable.push(this.grid);
+        this.redoable = [];
+        this.grid = JSON.parse(JSON.stringify(this.grid));         // Dereference this.grid from the object in undoable array
         // Update resources for each cell
         for (let row = 0; row < this.gridSize; row++) {
             for (let col = 0; col < this.gridSize; col++) {
-                const currentCell = this.cellResources[row][col];
+                const currentCell = this.grid[row][col];
 
                 // Plant growth mechanics
                 if (currentCell.plant) {
@@ -138,7 +153,7 @@ export class Game extends Scene {
 
     // Update plant growth based on resources
     private updatePlantGrowth(row: number, col: number) {
-        const cellResource = this.cellResources[row][col];
+        const cellResource = this.grid[row][col];
         const plant = cellResource.plant;
 
         if (!plant || !cellResource.sun || plant.growthLevel === this.MAX_GROWTH_LEVEL) return;
@@ -187,7 +202,7 @@ export class Game extends Scene {
         for (const cell of adjacentCells) {
             if (cell.row >= 0 && cell.row < this.gridSize &&
                 cell.col >= 0 && cell.col < this.gridSize) {
-                const adjacentPlant = this.cellResources[cell.row][cell.col].plant;
+                const adjacentPlant = this.grid[cell.row][cell.col].plant;
                 if (adjacentPlant) return false;
             }
         }
@@ -210,7 +225,7 @@ export class Game extends Scene {
                 const y = startY + row * this.cellSize;
 
                 // Get cell resources
-                const cellResource = this.cellResources[row][col];
+                const cellResource = this.grid[row][col];
 
                 // Determine cell color based on resources
                 let cellColor = 0xcccccc; // Default gray
@@ -315,57 +330,93 @@ export class Game extends Scene {
     
         // WASD Keys for Movement
         if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[65])) {
-            if (col > 0) this.movePlayerTo(row, col - 1); // Move left
+            if (col > 0) { 
+                this.undoable.push(this.playerPosition);
+                this.redoable = [];
+                this.movePlayerTo({row: row, col: col - 1}); // Move left
+            }
         }
-        if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[68])) {
-            if (col < this.gridSize - 1) this.movePlayerTo(row, col + 1); // Move right
+        else if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[68])) {
+            if (col < this.gridSize - 1) {
+                this.undoable.push(this.playerPosition);
+                this.redoable = [];
+                this.movePlayerTo({row: row, col: col + 1}); // Move right
+            }
         }
-        if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[87])) {
-            if (row > 0) this.movePlayerTo(row - 1, col); // Move up
+        else if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[87])) {
+            if (row > 0) {
+                this.undoable.push(this.playerPosition);
+                this.redoable = [];
+                this.movePlayerTo({row: row - 1, col: col}); // Move up
+            }
         }
-        if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[83])) {
-            if (row < this.gridSize - 1) this.movePlayerTo(row + 1, col); // Move down
+        else if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[83])) {
+            if (row < this.gridSize - 1) {
+                this.undoable.push(this.playerPosition);
+                this.redoable = [];
+                this.movePlayerTo({row: row + 1, col: col}); // Move down
+            }
         }
 
         // Arrow Keys for Plant Interaction
         if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
-            if (col > 0) this.handlePlantInteraction(row, col - 1);
+            if (col > 0) {
+                this.undoable.push(this.grid);
+                this.redoable = [];
+                this.grid = JSON.parse(JSON.stringify(this.grid));
+                this.handlePlantInteraction({row: row, col: col - 1});
+            }
         }
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
-            if (col < this.gridSize - 1) this.handlePlantInteraction(row, col + 1);
+        else if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
+            if (col < this.gridSize - 1) {
+                this.undoable.push(this.grid);
+                this.redoable = [];
+                this.grid = JSON.parse(JSON.stringify(this.grid));
+                this.handlePlantInteraction({row: row, col: col + 1});
+            }
         }
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
-            if (row > 0) this.handlePlantInteraction(row - 1, col);
+        else if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+            if (row > 0) {
+                this.undoable.push(this.grid);
+                this.redoable = [];
+                this.grid = JSON.parse(JSON.stringify(this.grid));
+                this.handlePlantInteraction({row: row - 1, col: col});
+            }
         }
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
-            if (row < this.gridSize - 1) this.handlePlantInteraction(row + 1, col);
+        else if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+            if (row < this.gridSize - 1) {
+                this.undoable.push(this.grid);
+                this.redoable = [];
+                this.grid = JSON.parse(JSON.stringify(this.grid));
+                this.handlePlantInteraction({row: row + 1, col: col});
+            }
         }
     }
 
-    private movePlayerTo(row: number, col: number) {
+    private movePlayerTo(cell: Coordinate) {
         const startX = (this.cameras.main.width - this.gridSize * this.cellSize) / 2;
         const startY = (this.cameras.main.height - this.gridSize * this.cellSize) / 2;
 
         // Calculate new position
-        const x = startX + col * this.cellSize + this.cellSize / 2;
-        const y = startY + row * this.cellSize + this.cellSize / 2;
+        const x = startX + cell.col * this.cellSize + this.cellSize / 2;
+        const y = startY + cell.row * this.cellSize + this.cellSize / 2;
 
         // Update the player's position
         this.player.setPosition(x, y);
-        this.playerPosition = { row, col };
+        this.playerPosition = cell;
     }
 
     // Method to handle plant interaction
-    private handlePlantInteraction(row: number, col: number) {
-        const cellResource = this.cellResources[row][col];
+    private handlePlantInteraction(cell: Coordinate) {
+        const cellResource = this.grid[cell.row][cell.col];
         
         // Plant a new plant if the cell is empty
         if (!cellResource.plant) {
-            this.sowPlant(row, col);
+            this.sowPlant(cell);
         } 
         // Harvest the plant if the cell has a plant
         else {
-            this.harvestPlant(row, col);
+            this.harvestPlant(cell);
         }
 
         // Redraw the grid to reflect plant changes
@@ -373,8 +424,8 @@ export class Game extends Scene {
     }
 
     // Method to plant a new plant in a cell
-    private sowPlant(row: number, col: number) {
-        const cellResource = this.cellResources[row][col];
+    private sowPlant(cell: Coordinate) {
+        const cellResource = this.grid[cell.row][cell.col];
 
         // Randomly select a plant species
         const plantSpeciesIndex = Math.floor(Math.random() * this.plantSpecies.length);
@@ -389,11 +440,40 @@ export class Game extends Scene {
     }
 
     // Method to harvest a plant from a cell
-    private harvestPlant(row: number, col: number) {
-        const cellResource = this.cellResources[row][col];
+    private harvestPlant(cell: Coordinate) {
+        const cellResource = this.grid[cell.row][cell.col];
 
         // Harvest the plant and remove it from the cell
         cellResource.plant = null;
+    }
+
+
+    // Handle UNDO and REDO operations
+    private undo(){
+        if (this.undoable.length > 0){
+            const action: Grid | Coordinate = this.undoable.pop()!;
+            if (Array.isArray(action)){         // cheap way to check if action is a Grid
+                this.redoable.push(this.grid);
+                this.grid = action;
+                this.drawGrid();
+            }else{                              // otherwise action is a Coordinate
+                this.redoable.push(this.playerPosition);
+                this.movePlayerTo(action)
+            }
+        }
+    }
+    private redo(){
+        if (this.redoable.length > 0){
+            const action: Grid | Coordinate = this.redoable.pop()!;
+            if (Array.isArray(action)){
+                this.undoable.push(this.grid);
+                this.grid = action;
+                this.drawGrid();
+            }else{
+                this.undoable.push(this.playerPosition)
+                this.movePlayerTo(action)
+            }
+        }
     }
 }
 
@@ -403,7 +483,12 @@ interface CellResource {
     water: number; // 0-3 water levels
     plant: Plant | null; // Plant object or null if no plant
 }
+type Grid = CellResource[][];
 
+interface Coordinate {
+    row: number,
+    col: number
+}
 // Interface to define plant structure
 interface Plant {
     species: string;

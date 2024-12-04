@@ -72,4 +72,4 @@ https://github.com/phaserjs/template-esbuild-ts
 **g)** The current win condition is for the player to start a turn with at least 3 plants at growth level 4.
 
 ### Reflection
-
+Coming into this, our team had a very solid plan of using Phaser3 as a framework to base our game on and code it using typecript. We had seen that Phaser3 supports typecript and given our experience with the platform from previous classes, we felt confident in our ability to make a game from scratch using this framework in typescript. We all knew how to translate between typescript and javascript, so that was an added bonus considering any possible project requirements. Since Phaser3 is an HTML5 type of framework and is based on javascript, we knew it would support JSON for storing object data. All of us have experience using Visual Studio Code so that was the agreed upon code editor. While we did consider using a dedicated IDE, the familiarity of VScode's enviroment provided enough comfort to proceed with the project. Overall, we did not make any major design changes and our experience so far has not led us wanting to.
