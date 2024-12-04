@@ -17,8 +17,12 @@ export class Game extends Scene {
     private MAXED_PLANTS_WIN_CONDITION = 3;
     private plantSpecies = ['0xDA70D6', '0x4CBB17', '0xF28C28']; // Lilac, Daisy, Tulip
     private numMaxedPlants = 0;
-    
 
+    // Save-related properties
+    private currentSaveSlot: string | null = null;
+    private autoSaveKey = 'game_autosave';
+    private saveSlotPrefix = 'game_save_';
+    
     constructor() {
         super('Game');
     }
@@ -26,6 +30,9 @@ export class Game extends Scene {
     create() {
         // Set up the camera background color
         this.cameras.main.setBackgroundColor(0x87ceeb); // Light blue
+
+        // Check for auto-save on game start
+        this.checkAutoSave();
 
         // Initialize cell resources
         this.initializeCellResources();
@@ -44,12 +51,20 @@ export class Game extends Scene {
 
         // Set up keyboard input
         this.cursors = this.input.keyboard.createCursorKeys();
-        this.input.keyboard.addKeys('W,S,A,D,T,X'); 
+        this.input.keyboard.addKeys('W,S,A,D,T,X,L,M'); 
         /*
         Added 'T' for turn advancement
         Added 'Z' for undo
         Added 'X' for redo
+        Added 'M' for manual save
+        Added 'L' for load
         */
+        
+        // Add key listeners for save/load
+        const saveKey = this.input.keyboard.addKey('M');
+        saveKey.on('down', this.saveGame, this);
+        const loadKey = this.input.keyboard.addKey('L');
+        loadKey.on('down', this.showSaveSlots, this);
         
         // Add a key listener for advancing turns
         const turnKey = this.input.keyboard.addKey('T');
@@ -65,6 +80,79 @@ export class Game extends Scene {
 
         // Set Win Condition (3 to win)
         this.numMaxedPlants = 0;
+    }
+
+    // Check for auto-save when game starts
+    private checkAutoSave() {
+        const autoSave = localStorage.getItem(this.autoSaveKey);
+        if (autoSave) {
+            const confirmLoad = confirm('An auto-save was found. Do you want to continue your previous game?');
+            if (confirmLoad) {
+                this.loadGameState(JSON.parse(autoSave));
+            }
+        }
+    }
+
+    // Save game to a specific slot or auto-save
+    private saveGame(slot?: string) {
+        const gameState: GameState = {
+            grid: this.grid,
+            playerPosition: this.playerPosition,
+            numMaxedPlants: this.numMaxedPlants,
+            undoable: this.undoable,
+            redoable: this.redoable
+        };
+
+        if (!slot) {
+            // Auto-save
+            localStorage.setItem(this.autoSaveKey, JSON.stringify(gameState));
+            alert('Auto-save completed.');
+        } else {
+            // Manual save to a specific slot
+            localStorage.setItem(this.saveSlotPrefix + slot, JSON.stringify(gameState));
+            alert(`Game saved to slot ${slot}.`);
+        }
+    }
+
+    // Show save slots for manual save/load
+    private showSaveSlots() {
+        const action = prompt('Enter action (save/load) and slot number (1-5), e.g., "save 1" or "load 2":');
+        if (!action) return;
+
+        const [actionType, slotNumber] = action.toLowerCase().split(' ');
+        const slot = `slot${slotNumber}`;
+
+        if (actionType === 'save') {
+            this.saveGame(slot);
+        } else if (actionType === 'load') {
+            this.loadGame(slot);
+        }
+    }
+
+    // Load game from a specific slot
+    private loadGame(slot: string) {
+        const savedGame = localStorage.getItem(this.saveSlotPrefix + slot);
+        if (savedGame) {
+            this.loadGameState(JSON.parse(savedGame));
+        } else {
+            alert(`No save found in slot ${slot}.`);
+        }
+    }
+
+    // Load game state (for both auto-save and manual load)
+    private loadGameState(savedState: GameState) {
+        // Restore game state
+        this.grid = savedState.grid;
+        this.playerPosition = savedState.playerPosition;
+        this.numMaxedPlants = savedState.numMaxedPlants;
+        this.undoable = savedState.undoable || [];
+        this.redoable = savedState.redoable || [];
+
+        // Redraw grid and reposition player
+        this.drawGrid();
+        this.repositionPlayer();
+
+        alert('Game loaded successfully.');
     }
 
     update() {
@@ -149,6 +237,9 @@ export class Game extends Scene {
 
         // Redraw the grid to reflect new resources
         this.drawGrid();
+
+        // Auto-save after each turn
+        this.saveGame();
     }
 
     // Update plant growth based on resources
@@ -475,6 +566,15 @@ export class Game extends Scene {
             }
         }
     }
+}
+
+// Interface for game state
+interface GameState {
+    grid: Grid;
+    playerPosition: Coordinate;
+    numMaxedPlants: number;
+    undoable: (Grid | Coordinate)[];
+    redoable: (Grid | Coordinate)[];
 }
 
 // Interface to define cell resource structure
