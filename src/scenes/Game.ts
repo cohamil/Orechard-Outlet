@@ -28,21 +28,36 @@ export class Game extends Scene {
     }
 
     create() {
-        // Set up the camera background color
-        this.cameras.main.setBackgroundColor(0x87ceeb); // Light blue
-
-        // Check for auto-save on game start
-        this.checkAutoSave();
-
-        // Initialize cell resources
+        this.cameras.main.setBackgroundColor(0x87ceeb);
+    
+        // Initialize grid and player first
         this.initializeCellResources();
-
-        // Create the player first
         this.createPlayer();
         this.movePlayerTo(this.playerPosition);
-
-        // Draw the 2D grid with resources
-        this.drawGrid();
+    
+        let autoSaveLoaded = false;
+        
+        // Check for auto-save
+        const autoSave = localStorage.getItem(this.autoSaveKey);
+        if (autoSave) {
+            const confirmLoad = confirm('An auto-save was found. Do you want to continue your previous game?');
+            if (confirmLoad) {
+                try {
+                    const savedState = JSON.parse(autoSave);
+                    if (this.isValidGameState(savedState)) {
+                        this.loadGameState(savedState);
+                        autoSaveLoaded = true;
+                    }
+                } catch (error) {
+                    console.error('Error loading auto-save:', error);
+                }
+            }
+        }
+    
+        // Only draw initial grid if no autosave was loaded
+        if (!autoSaveLoaded) {
+            this.drawGrid();
+        }
 
         if (!this.input.keyboard) {
             console.error('Keyboard input system is not available.');
@@ -141,24 +156,28 @@ export class Game extends Scene {
 
     // Save game to a specific slot or auto-save
     private saveGame(slot?: string) {
+        // Create a clean copy of the grid state
+        const gridCopy = this.grid.map(row => 
+            row.map(cell => ({
+                sun: cell.sun,
+                water: cell.water,
+                plant: cell.plant ? {
+                    species: cell.plant.species,
+                    growthLevel: cell.plant.growthLevel
+                } : null
+            }))
+        );
+    
         const gameState: GameState = {
-            grid: JSON.parse(JSON.stringify(this.grid)), // Deep copy to ensure no references
+            grid: gridCopy,
             playerPosition: { ...this.playerPosition },
             numMaxedPlants: this.numMaxedPlants,
-            undoable: JSON.parse(JSON.stringify(this.undoable)), // Deep copy
-            redoable: JSON.parse(JSON.stringify(this.redoable)), // Deep copy
+            undoable: JSON.parse(JSON.stringify(this.undoable)),
+            redoable: JSON.parse(JSON.stringify(this.redoable))
         };
     
-        const serializedState = JSON.stringify(gameState, (key, value) => {
-            // Custom replacer to help debug serialization
-            if (typeof value === 'object' && value !== null) {
-                console.log(`Serializing key: ${key}`, value);
-            }
-            return value;
-        }, 2); // The '2' adds indentation for readability
-    
-        console.log('Full serialized save data:', serializedState);
-    
+        const serializedState = JSON.stringify(gameState);
+        
         try {
             if (!slot) {
                 localStorage.setItem(this.autoSaveKey, serializedState);
@@ -168,11 +187,9 @@ export class Game extends Scene {
             }
         } catch (error) {
             console.error('Error saving game state:', error);
-            alert('Failed to save game state. Check local storage permissions.');
+            alert('Failed to save game state.');
         }
     }
-    
-    
 
     // Show save slots for manual save/load
     private showSaveSlots() {
@@ -201,73 +218,36 @@ export class Game extends Scene {
 
     // Load game state (for both auto-save and manual load)
     private loadGameState(savedState: GameState) {
-        console.log('Full saved state:', savedState);
+        try {
+            // Reconstruct the grid with proper typing
+            this.grid = savedState.grid.map(row => 
+                row.map(cell => ({
+                    sun: Boolean(cell.sun),
+                    water: Number(cell.water),
+                    plant: cell.plant ? {
+                        species: String(cell.plant.species),
+                        growthLevel: Number(cell.plant.growthLevel)
+                    } : null
+                }))
+            );
     
-        // Detailed validation of each cell
-        const validateGrid = (grid: Grid): boolean => {
-            for (let row = 0; row < grid.length; row++) {
-                for (let col = 0; col < grid[row].length; col++) {
-                    const cell = grid[row][col];
-                    
-                    // Validate cell structure
-                    if (typeof cell.sun !== 'boolean') {
-                        console.error(`Invalid sun value at (${row}, ${col})`, cell);
-                        return false;
-                    }
-                    
-                    if (typeof cell.water !== 'number') {
-                        console.error(`Invalid water value at (${row}, ${col})`, cell);
-                        return false;
-                    }
-                    
-                    // Validate plant if exists
-                    if (cell.plant !== null) {
-                        if (typeof cell.plant.species !== 'string') {
-                            console.error(`Invalid plant species at (${row}, ${col})`, cell.plant);
-                            return false;
-                        }
-                        
-                        if (typeof cell.plant.growthLevel !== 'number') {
-                            console.error(`Invalid plant growth level at (${row}, ${col})`, cell.plant);
-                            return false;
-                        }
-                    }
-                }
+            this.playerPosition = { ...savedState.playerPosition };
+            this.numMaxedPlants = savedState.numMaxedPlants || 0;
+            this.undoable = savedState.undoable || [];
+            this.redoable = savedState.redoable || [];
+    
+            if (!this.player) {
+                this.createPlayer();
             }
-            return true;
-        };
     
-        // Validate grid structure
-        if (!validateGrid(savedState.grid)) {
-            console.error('Grid validation failed');
-            alert('Failed to load saved game due to invalid grid data.');
-            return;
+            this.drawGrid();
+            this.repositionPlayer();
+            
+            console.log('Game loaded successfully - Grid state:', this.grid);
+        } catch (error) {
+            console.error('Error loading game state:', error);
+            alert('Failed to load game state.');
         }
-    
-        // Deep copy the grid with additional validation
-        this.grid = JSON.parse(JSON.stringify(savedState.grid));
-    
-        // Additional logging and checks
-        console.log('Loaded grid:', this.grid);
-        validateGrid(this.grid);
-    
-        this.playerPosition = { ...savedState.playerPosition };
-        this.numMaxedPlants = savedState.numMaxedPlants || 0;
-        
-        // Deep copy undo/redo stacks
-        this.undoable = JSON.parse(JSON.stringify(savedState.undoable || []));
-        this.redoable = JSON.parse(JSON.stringify(savedState.redoable || []));
-        
-        // Recreate player if it doesn't exist
-        if (!this.player) {
-            this.createPlayer();
-        }
-        
-        // Redraw grid and reposition player
-        this.drawGrid();
-        this.repositionPlayer();
-        
-        alert('Game loaded successfully.');
     }
     
 
