@@ -10,6 +10,11 @@ export class Game extends Scene {
     private undoable: (Grid | Coordinate)[];   // Tracks undoable actions. If needed, can be changed to an any[] array
     private redoable: (Grid | Coordinate)[];    // Tracks redoable actions.  ""
     private gameSettings: Settings;              // Define how game should be played out
+    private weatherSchedule: {next(): weatherKey | null};
+    private resourceModifier = {
+        sun: 1,
+        water: 1
+    }
     
     // New properties for cell resources
     private grid!: Grid;
@@ -17,7 +22,6 @@ export class Game extends Scene {
     private waterProbability: number;
 
     // Constants
-    private MAX_GROWTH_LEVEL = 4;
     private MAXED_PLANTS_WIN_CONDITION: number;
     private plantSpecies: Plant[] = []; 
     private numMaxedPlants = 0;
@@ -67,8 +71,19 @@ export class Game extends Scene {
         }
         console.log("Game Settings: \n" + JSON.stringify(this.gameSettings))
         this.gridSize = this.gameSettings.gridSize;
-        this.sunProbability = this.gameSettings.sunProbability;
-        this.waterProbability = this.gameSettings.waterProbability;
+        this.sunProbability = this.gameSettings.defaultSunProbability;
+        this.waterProbability = this.gameSettings.defaultWaterProbability;
+        this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
+        let weatherKeys = this.gameSettings.weatherSchedule;
+        // Check that weatherSchedule imported with correct keys
+        if (!weatherKeys.every(key => Object.keys(Weathers).includes(key))){
+            console.error(`YAML: weatherSchedule has unknown options:\n
+                ${weatherKeys.filter(key => !Object.keys(Weathers).includes(key))}\n
+                Using Defaults`)
+                weatherKeys = [];
+        }
+        this.weatherSchedule = this.createIterator(weatherKeys);
+        this.updateWeather();
 
         this.cameras.main.setBackgroundColor(0x87ceeb);
     
@@ -132,7 +147,7 @@ export class Game extends Scene {
         const redoKey = this.input.keyboard.addKey('X');
         redoKey.on('down', this.redo, this)
 
-        // Set Game Configuration
+        // Reset Win Condition
         this.numMaxedPlants = 0;
 
         // Create base Plants
@@ -145,11 +160,29 @@ export class Game extends Scene {
     private setDefaultSettings(){
         this.gameSettings = {
             gridSize: 10,
-            sunProbability: 0.4,
-            waterProbability: 0.4
+            plantsToMax: 4,
+            defaultSunProbability: 0.4,
+            defaultWaterProbability: 0.4,
+            weatherSchedule: []
         }
     }
 
+    private createIterator(array: weatherKey[]): {next() : weatherKey | null}{       // Returns null if nothing left to return
+        let index = 0;
+        return {
+            next: function() {
+                if (index < array.length){
+                    const value = array[index];
+                    index += 1;
+                    return value;
+                }else{
+                    return null;
+                }
+            }
+        }
+    }
+
+    // Create a new plant species
     private createSpecies(species: string, conditions: GrowthCondition[]){
         // make the object based on parameters and add to plantSpecies array
         // TBD: add location of spritesheet to use
@@ -353,6 +386,7 @@ export class Game extends Scene {
 
     // Advance turn with new resource mechanics
     private advanceTurn() {
+        this.updateWeather();
         this.undoable.push(this.grid);
         this.redoable = [];
         this.grid = JSON.parse(JSON.stringify(this.grid));         // Dereference this.grid from the object in undoable array
@@ -375,13 +409,7 @@ export class Game extends Scene {
                 }
 
                 // Sun mechanics
-                if (currentCell.sun > 0) {
-                    // Remove existing sun
-                    currentCell.sun = 0;
-                } else {
-                    // Chance to gain sun
-                    currentCell.sun = Math.random() < this.sunProbability ? 1 : 0; // 30% chance to gain sun
-                }
+                currentCell.sun = Math.random() / this.resourceModifier.sun < this.sunProbability ? 1 : 0;
 
                 // Water mechanics
                 if (currentCell.water > 0) {
@@ -390,18 +418,26 @@ export class Game extends Scene {
                     currentCell.water = Math.max(0, Math.min(3, currentCell.water + waterChange));
                 } else {
                     // Cells without water have a chance to gain water
-                    if (Math.random() < this.waterProbability) { // 40% chance to gain water
-                        currentCell.water = 1;
-                    }
+                    currentCell.water = Math.random() / this.resourceModifier.water < this.waterProbability ? 1 : 0;
                 }
             }
         }
-
         // Redraw the grid to reflect new resources
         this.drawGrid();
 
         // Auto-save after each turn
         this.saveGame();
+    }
+
+    private updateWeather(){
+        const newWeather: weatherKey | null = this.weatherSchedule.next();
+        if (newWeather && newWeather != "DEFAULT"){
+            this.resourceModifier.sun = Weathers[newWeather].sun;
+            this.resourceModifier.water = Weathers[newWeather].water;
+        }else{
+            this.resourceModifier.sun = 1;
+            this.resourceModifier.water = 1;
+        }
     }
 
     // Update plant growth based on resources
@@ -414,6 +450,10 @@ export class Game extends Scene {
         if (cellResource.water >= condition.requiredWater && cellResource.sun >= condition.requiredSun){
             if (condition.requiredNeighbors == -1 || condition.requiredNeighbors == this.checkAdjacentFlowers(cell)){      // Plant does not care for number of neighbors
                 plant.growthLevel += 1;
+                if (plant.growthLevel == plant.maxGrowthLevel){
+                    this.numMaxedPlants += 1;
+                    console.log(`1 more plant maxed! \nHave ${this.numMaxedPlants}\nNeed ${this.MAXED_PLANTS_WIN_CONDITION}`)
+                }
                 cellResource.water -= 1;
             }
         }
@@ -506,7 +546,7 @@ export class Game extends Scene {
                     //console.log(`Plant in cell (${row}, ${col}):`, plant);
                     
                     const plantColor = plant.species;
-                    const plantSize = (this.cellSize * 0.4) * ((1+plant.growthLevel) / this.MAX_GROWTH_LEVEL);
+                    const plantSize = (this.cellSize * 0.4) * ((1+plant.growthLevel) / plant.maxGrowthLevel);
                     const plantX = x + (this.cellSize - plantSize) / 2;
                     const plantY = y + (this.cellSize - plantSize) / 2;
     
@@ -754,6 +794,28 @@ interface GrowthCondition {
 // Interface to define game settings
 interface Settings {
     gridSize: number,
-    sunProbability: number,
-    waterProbability: number
+    plantsToMax: number,
+    defaultSunProbability: number,
+    defaultWaterProbability: number
+    weatherSchedule: weatherKey[]
 }
+// Enum to define types of weather
+type weatherKey = keyof typeof Weathers
+const Weathers = Object.freeze({
+    SUNNY : {
+        sun: 100,
+        water: 1
+    },
+    RAINY : {
+        sun: 1,
+        water: 2
+    },
+    CLOUDY : {
+        sun: 0.5,
+        water: 1
+    },
+    DEFAULT : {
+        sun: 1,
+        water: 1
+    }
+})

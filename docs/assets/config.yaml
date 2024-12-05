@@ -1,3 +1,18 @@
+# Set Dimensions of playable Grid. Grid is always square.
 gridSize: 10
-sunProbability: 0.99
-waterProbability: 0.3
+# Win Condition: number of plants at max level needed at start of a new turn
+plantsToMax: 5
+# Probability of Resources in each cell for every new turn
+defaultSunProbability: 0.01
+defaultWaterProbability: 0.4
+# Set order of Weather for days
+# Current Options of Weather:
+# DEFAULT
+# SUNNY : double chances of sun
+# RAINY : double chances of water
+# CLOUDY : half chances of sun
+weatherSchedule:
+  - DEFAULT
+  - SUNNY
+  - DEFAULT
+  - RAINY
