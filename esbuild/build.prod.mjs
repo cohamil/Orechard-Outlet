@@ -26,18 +26,18 @@ const builder = async () => {
         outfile: './dist/bundle.min.js',
         plugins: [
             clean({
-                patterns: ['./dist/*', './public/bundle.min.js'],
+                patterns: ['./dist/*', './docs/bundle.min.js'],
             }),
             inlineImage({
                 namespace: 'assets',
             }),
             copy({
                 assets: [
-                    { from: './public/index.html', to: './' },
-                    { from: './public/style.css', to: './' },
-                    { from: './public/favicon.ico', to: './' },
-                    { from: './public/favicon.png', to: './' },
-                    { from: './public/assets/**/*', to: './assets/' }
+                    { from: './docs/index.html', to: './' },
+                    { from: './docs/style.css', to: './' },
+                    { from: './docs/favicon.ico', to: './' },
+                    { from: './docs/favicon.png', to: './' },
+                    { from: './docs/assets/**/*', to: './assets/' }
                 ],
             }),
             msgPhaser
