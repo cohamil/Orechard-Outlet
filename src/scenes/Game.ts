@@ -1,20 +1,24 @@
 import { Scene } from 'phaser';
+import { parse } from 'yaml';
 
 export class Game extends Scene {
-    private gridSize: number = 10; // Number of rows and columns
+    private gridSize: number; // Number of rows and columns
     private cellSize: number = 64; // Size of each cell in pixels
     private player!: Phaser.GameObjects.Rectangle; // The player's visual representation
     private playerPosition: Coordinate = { row: 0, col: 0 }; // Tracks the player's position on the grid
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private undoable: (Grid | Coordinate)[];   // Tracks undoable actions. If needed, can be changed to an any[] array
     private redoable: (Grid | Coordinate)[];    // Tracks redoable actions.  ""
+    private gameSettings: Settings;              // Define how game should be played out
     
     // New properties for cell resources
     private grid!: Grid;
+    private sunProbability: number;
+    private waterProbability: number;
 
     // Constants
     private MAX_GROWTH_LEVEL = 4;
-    private MAXED_PLANTS_WIN_CONDITION = 3;
+    private MAXED_PLANTS_WIN_CONDITION: number;
     private plantSpecies: Plant[] = []; 
     private numMaxedPlants = 0;
     private defaultGrowthConditions: GrowthCondition[] = [
@@ -44,7 +48,28 @@ export class Game extends Scene {
         super('Game');
     }
 
+    preload() {
+        this.load.text('yamlData' , '/assets/config.yaml')
+    }
+
     create() {
+        // Get settings from config
+        if (this.cache.text.has('yamlData')){
+            try {
+                this.gameSettings = parse(this.cache.text.get('yamlData'))
+            }catch (error){
+                console.error('Error parsing YAML file. YAML file not formatted correctly. Using defaults.');
+                this.setDefaultSettings();
+            }
+        }else{
+            console.error("YAML file not found, using defaults.")
+            this.setDefaultSettings();
+        }
+        console.log("Game Settings: \n" + JSON.stringify(this.gameSettings))
+        this.gridSize = this.gameSettings.gridSize;
+        this.sunProbability = this.gameSettings.sunProbability;
+        this.waterProbability = this.gameSettings.waterProbability;
+
         this.cameras.main.setBackgroundColor(0x87ceeb);
     
         // Initialize grid and player first
@@ -107,7 +132,7 @@ export class Game extends Scene {
         const redoKey = this.input.keyboard.addKey('X');
         redoKey.on('down', this.redo, this)
 
-        // Set Win Condition (3 to win)
+        // Set Game Configuration
         this.numMaxedPlants = 0;
 
         // Create base Plants
@@ -115,6 +140,14 @@ export class Game extends Scene {
         this.createSpecies('0xDA70D6', this.defaultGrowthConditions)
         this.createSpecies('0x4CBB17', this.defaultGrowthConditions)
         this.createSpecies('0xF28C28', this.defaultGrowthConditions)
+    }
+
+    private setDefaultSettings(){
+        this.gameSettings = {
+            gridSize: 10,
+            sunProbability: 0.4,
+            waterProbability: 0.4
+        }
     }
 
     private createSpecies(species: string, conditions: GrowthCondition[]){
@@ -308,11 +341,8 @@ export class Game extends Scene {
 
     // Randomly generate resources for a cell
     private generateCellResources(): CellResource {
-        const sunProbability = 0.4;
-        const waterProbability = 0.4;
-
-        const sunLevel = Math.random() < sunProbability ? 1 : 0;
-        const waterLevel = Math.random() < waterProbability ? 1 : 0;
+        const sunLevel = Math.random() < this.sunProbability ? 1 : 0;
+        const waterLevel = Math.random() < this.waterProbability ? 1 : 0;
 
         return {
             sun: sunLevel,
@@ -350,7 +380,7 @@ export class Game extends Scene {
                     currentCell.sun = 0;
                 } else {
                     // Chance to gain sun
-                    currentCell.sun = Math.random() < 0.3 ? 1 : 0; // 30% chance to gain sun
+                    currentCell.sun = Math.random() < this.sunProbability ? 1 : 0; // 30% chance to gain sun
                 }
 
                 // Water mechanics
@@ -360,7 +390,7 @@ export class Game extends Scene {
                     currentCell.water = Math.max(0, Math.min(3, currentCell.water + waterChange));
                 } else {
                     // Cells without water have a chance to gain water
-                    if (Math.random() < 0.4) { // 40% chance to gain water
+                    if (Math.random() < this.waterProbability) { // 40% chance to gain water
                         currentCell.water = 1;
                     }
                 }
@@ -387,37 +417,6 @@ export class Game extends Scene {
                 cellResource.water -= 1;
             }
         }
-
-        /*switch (plant.growthLevel) {
-            // Any amount of water is enough
-            case 1:
-                if (cellResource.water > 0) {
-                    plant.growthLevel += 1;
-                    cellResource.water -= 1; // Consume water
-
-                    //console.log(`Plant at (${cell.row}, ${cell.col}) grew to level ${plant.growthLevel}`);
-                }
-                break; 
-            // Needs at least 2 water
-            case 2:
-                if (cellResource.water >= 2) {
-                    plant.growthLevel += 1;
-                    cellResource.water -= 1; // Consume water
-
-                    //console.log(`Plant at (${cell.row}, ${cell.col}) grew to level ${plant.growthLevel}`);
-                }
-                break;
-            // Needs at least 2 water and no adjacent flowers
-            case 3:
-                if (cellResource.water >= 2 && this.checkAdjacentFlowers({row: cell.row, col: cell.col})) {
-                    plant.growthLevel += 1;
-                    cellResource.water -= 1; // Consume water
-                    this.numMaxedPlants += 1;
-
-                    //console.log(`Plant at (${cell.row}, ${cell.col}) grew to level ${plant.growthLevel}`);
-                }
-                break;
-        }*/
     }
 
     // Check for adjacent flowers to prevent growth
@@ -744,16 +743,17 @@ interface Coordinate {
 interface Plant {
     species: string;
     growthLevel: number; // 1-4 growth levels
-    maxGrowthLevel: number
-    growthConditions: GrowthCondition[]
+    maxGrowthLevel: number;
+    growthConditions: GrowthCondition[];
 }
-/*
-growthConditions: Condition[]
-each index is the value of plantgrowth needed for that condition
-ex: growthConditions[0] is the condition for that plant to grow from 0 to 1
-*/
 interface GrowthCondition {
     requiredWater: number;
     requiredSun: number;
     requiredNeighbors: number;
+}
+// Interface to define game settings
+interface Settings {
+    gridSize: number,
+    sunProbability: number,
+    waterProbability: number
 }
