@@ -28,6 +28,8 @@ export class PopupWindow extends Phaser.GameObjects.Container {
         });
         this.add(closeButton);
 
+        this.setDepth(1000);
+
         scene.add.existing(this);
     }
 

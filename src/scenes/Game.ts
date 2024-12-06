@@ -1,6 +1,7 @@
 import { Scene } from 'phaser';
 
 import { TextButton } from '../text-button';
+import { PopupWindow } from '../popup-window';
 import { parse } from 'yaml';
 
 export class Game extends Scene {
@@ -12,7 +13,7 @@ export class Game extends Scene {
     private undoable: (Grid | Coordinate)[];   // Tracks undoable actions. If needed, can be changed to an any[] array
     private redoable: (Grid | Coordinate)[];    // Tracks redoable actions.  ""
     private gameSettings: Settings;              // Define how game should be played out
-    private weatherSchedule: {next(): weatherKey | null};
+    private weatherSchedule: {next() : weatherKey | null, getNext(): weatherKey | null};
     private resourceModifier = {
         sun: 1,
         water: 1
@@ -52,9 +53,11 @@ export class Game extends Scene {
 
     // UI properties
     private UIElements: { 
+        forecastText: Phaser.GameObjects.Text | null,
         settingsButton: TextButton | null
         tutorialButton: TextButton | null 
     } = {
+        forecastText: null,
         settingsButton: null,
         tutorialButton: null,
     }
@@ -87,6 +90,10 @@ export class Game extends Scene {
                     console.error('Error loading auto-save:', error);
                 }
             }
+            else {
+                this.createPlayer();
+                this.movePlayerTo({row: 0, col: 0});
+            }
         }
     
         // Only load YAML settings if no save was loaded
@@ -117,6 +124,8 @@ export class Game extends Scene {
             }
             this.weatherSchedule = this.createIterator(weatherKeys);
             this.updateWeather();
+
+            this.createPlayer();
     
             // Initialize grid
             this.initializeCellResources();
@@ -124,8 +133,6 @@ export class Game extends Scene {
         }
     
         // Create base Plants regardless of load state
-        this.createPlayer();
-        this.movePlayerTo(this.playerPosition);
         this.plantSpecies = []; // Reset plant species
         this.createSpecies('0xDA70D6', this.defaultGrowthConditions);
         this.createSpecies('0x4CBB17', this.defaultGrowthConditions);
@@ -168,6 +175,18 @@ export class Game extends Scene {
         this.createSpecies('0xF28C28', this.defaultGrowthConditions)
 
         // Create UI elements
+        this.createUIElements();
+    }
+
+    // Create the UI elements for the game scene
+    private createUIElements(){
+        // Create forecast text
+        const forecastText = this.weatherSchedule.getNext() || 'NORMAL';
+        this.UIElements.forecastText = this.add.text(Number(this.game.config.width) / 2 - 200, 0, 'Forecast: ' + forecastText, {
+            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        });
+
         // Create Settings button
         this.UIElements.settingsButton = new TextButton(this, 0, 0, 'Settings', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
@@ -186,6 +205,14 @@ export class Game extends Scene {
         });
     }
 
+    // Update the forecacst UI
+    private updateForecastUI(){
+        if (this.UIElements.forecastText){
+            const forecastText = this.weatherSchedule.getNext() || 'NORMAL';
+            this.UIElements.forecastText.setText('Forecast: ' + forecastText);
+        }
+    }
+
     private setDefaultSettings(){
         this.gameSettings = {
             gridSize: 10,
@@ -196,7 +223,7 @@ export class Game extends Scene {
         }
     }
 
-    private createIterator(array: weatherKey[]): {next() : weatherKey | null}{       // Returns null if nothing left to return
+    private createIterator(array: weatherKey[]): {next() : weatherKey | null, getNext(): weatherKey | null}{       // Returns null if nothing left to return
         let index = 0;
         return {
             next: function() {
@@ -204,6 +231,13 @@ export class Game extends Scene {
                     const value = array[index];
                     index += 1;
                     return value;
+                }else{
+                    return null;
+                }
+            },
+            getNext: function(){
+                if (index < array.length){
+                    return array[index];
                 }else{
                     return null;
                 }
@@ -390,10 +424,7 @@ private loadGameState(savedState: GameState) {
         this.undoable = savedState.undoable || [];
         this.redoable = savedState.redoable || [];
 
-        // Create player if needed
-        if (!this.player) {
-            this.createPlayer();
-        }
+        this.createPlayer();
 
         // Update display
         this.drawGrid();
@@ -441,6 +472,7 @@ private loadGameState(savedState: GameState) {
     // Advance turn with new resource mechanics
     private advanceTurn() {
         this.updateWeather();
+        this.updateForecastUI();
         this.undoable.push(this.grid);
         this.redoable = [];
         this.grid = JSON.parse(JSON.stringify(this.grid));         // Dereference this.grid from the object in undoable array
@@ -604,10 +636,26 @@ private loadGameState(savedState: GameState) {
                     const plantX = x + (this.cellSize - plantSize) / 2;
                     const plantY = y + (this.cellSize - plantSize) / 2;
     
+                    // Draw the plant
                     this.add
                         .rectangle(plantX, plantY, plantSize, plantSize, parseInt(plantColor))
                         .setOrigin(0)
                         .setStrokeStyle(1, 0x000000);
+
+                    // Create a popup window for plant information
+                    const plantPopup = new PopupWindow(this, this.cameras.main.width / 2, this.cameras.main.height / 2, 700, 500, 'Plant Info', 
+                        `Species: ${plant.species}\nGrowth Level: ${plant.growthLevel}\nMax Growth Level: ${plant.maxGrowthLevel}`, {
+                        fontFamily: 'Arial Black', fontSize: 24, color: '#ffffff',
+                        stroke: '#000000', strokeThickness: 6
+                    });
+                    plantPopup.setVisibility(false);
+
+                    // Make the cell interactive
+                    this.add.rectangle(x, y, this.cellSize - 2, this.cellSize - 2, cellColor)
+                        .setOrigin(0)
+                        .setAlpha(0.001)
+                        .setInteractive()
+                        .on('pointerdown', () => plantPopup.setVisibility(true));
                 }
             }
         }
