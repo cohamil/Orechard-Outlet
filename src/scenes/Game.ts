@@ -57,44 +57,11 @@ export class Game extends Scene {
     }
 
     create() {
-        // Get settings from config
-        if (this.cache.text.has('yamlData')){
-            try {
-                this.gameSettings = parse(this.cache.text.get('yamlData'))
-            }catch (error){
-                console.error('Error parsing YAML file. YAML file not formatted correctly. Using defaults.');
-                this.setDefaultSettings();
-            }
-        }else{
-            console.error("YAML file not found, using defaults.")
-            this.setDefaultSettings();
-        }
-        console.log("Game Settings: \n" + JSON.stringify(this.gameSettings))
-        this.gridSize = this.gameSettings.gridSize;
-        this.sunProbability = this.gameSettings.defaultSunProbability;
-        this.waterProbability = this.gameSettings.defaultWaterProbability;
-        this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
-        let weatherKeys = this.gameSettings.weatherSchedule;
-        // Check that weatherSchedule imported with correct keys
-        if (!weatherKeys.every(key => Object.keys(Weathers).includes(key))){
-            console.error(`YAML: weatherSchedule has unknown options:\n
-                ${weatherKeys.filter(key => !Object.keys(Weathers).includes(key))}\n
-                Using Defaults`)
-                weatherKeys = [];
-        }
-        this.weatherSchedule = this.createIterator(weatherKeys);
-        this.updateWeather();
-
         this.cameras.main.setBackgroundColor(0x87ceeb);
-    
-        // Initialize grid and player first
-        this.initializeCellResources();
-        this.createPlayer();
-        this.movePlayerTo(this.playerPosition);
     
         let autoSaveLoaded = false;
         
-        // Check for auto-save
+        // Check for auto-save first
         const autoSave = localStorage.getItem(this.autoSaveKey);
         if (autoSave) {
             const confirmLoad = confirm('An auto-save was found. Do you want to continue your previous game?');
@@ -111,26 +78,57 @@ export class Game extends Scene {
             }
         }
     
-        // Only draw initial grid if no autosave was loaded
+        // Only load YAML settings if no save was loaded
         if (!autoSaveLoaded) {
+            if (this.cache.text.has('yamlData')) {
+                try {
+                    this.gameSettings = parse(this.cache.text.get('yamlData'));
+                } catch (error) {
+                    console.error('Error parsing YAML file. Using defaults.');
+                    this.setDefaultSettings();
+                }
+            } else {
+                console.error("YAML file not found, using defaults.");
+                this.setDefaultSettings();
+            }
+    
+            // Initialize with YAML/default settings
+            this.gridSize = this.gameSettings.gridSize;
+            this.sunProbability = this.gameSettings.defaultSunProbability;
+            this.waterProbability = this.gameSettings.defaultWaterProbability;
+            this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
+            
+            // Initialize weather
+            let weatherKeys = this.gameSettings.weatherSchedule;
+            if (!weatherKeys.every(key => Object.keys(Weathers).includes(key))) {
+                console.error('YAML: weatherSchedule has unknown options, using defaults');
+                weatherKeys = [];
+            }
+            this.weatherSchedule = this.createIterator(weatherKeys);
+            this.updateWeather();
+    
+            // Initialize grid
+            this.initializeCellResources();
             this.drawGrid();
         }
-
+    
+        // Create base Plants regardless of load state
+        this.createPlayer();
+        this.movePlayerTo(this.playerPosition);
+        this.plantSpecies = []; // Reset plant species
+        this.createSpecies('0xDA70D6', this.defaultGrowthConditions);
+        this.createSpecies('0x4CBB17', this.defaultGrowthConditions);
+        this.createSpecies('0xF28C28', this.defaultGrowthConditions);
+    
+        // Set up keyboard input
         if (!this.input.keyboard) {
             console.error('Keyboard input system is not available.');
             return;
         }
-
-        // Set up keyboard input
+    
         this.cursors = this.input.keyboard.createCursorKeys();
-        this.input.keyboard.addKeys('W,S,A,D,T,X,L,M'); 
-        /*
-        Added 'T' for turn advancement
-        Added 'Z' for undo
-        Added 'X' for redo
-        Added 'L' for load
-        */
-        
+        this.input.keyboard.addKeys('W,S,A,D,T,X,L,M');
+    
         // Add key listeners for save/load
         const loadKey = this.input.keyboard.addKey('L');
         loadKey.on('down', this.showSaveSlots, this);
@@ -138,23 +136,19 @@ export class Game extends Scene {
         // Add a key listener for advancing turns
         const turnKey = this.input.keyboard.addKey('T');
         turnKey.on('down', this.advanceTurn, this);
-
+    
         // Add key listeners for undo/redo
         this.undoable = [];
         const undoKey = this.input.keyboard.addKey('Z');
         undoKey.on('down', this.undo, this);
         this.redoable = [];
         const redoKey = this.input.keyboard.addKey('X');
-        redoKey.on('down', this.redo, this)
-
-        // Reset Win Condition
-        this.numMaxedPlants = 0;
-
-        // Create base Plants
-        // Lilac, Daisy, Tulip
-        this.createSpecies('0xDA70D6', this.defaultGrowthConditions)
-        this.createSpecies('0x4CBB17', this.defaultGrowthConditions)
-        this.createSpecies('0xF28C28', this.defaultGrowthConditions)
+        redoKey.on('down', this.redo, this);
+    
+        // Reset Win Condition if not loaded
+        if (!autoSaveLoaded) {
+            this.numMaxedPlants = 0;
+        }
     }
 
     private setDefaultSettings(){
@@ -258,25 +252,24 @@ export class Game extends Scene {
     // Save game to a specific slot or auto-save
     private saveGame(slot?: string) {
         // Create a clean copy of the grid state
-        const gridCopy = this.grid.map(row => 
-            row.map(cell => ({
-                sun: cell.sun,
-                water: cell.water,
-                plant: cell.plant ? {
-                    species: cell.plant.species,
-                    growthLevel: cell.plant.growthLevel,
-                    maxGrowthLevel: cell.plant.maxGrowthLevel,
-                    growthConditions: JSON.parse(JSON.stringify(cell.plant.growthConditions))
-                } : null
-            }))
-        );
-    
         const gameState: GameState = {
-            grid: gridCopy,
+            grid: this.grid.map(row => 
+                row.map(cell => ({
+                    sun: cell.sun,
+                    water: cell.water,
+                    plant: cell.plant ? {
+                        species: cell.plant.species,
+                        growthLevel: cell.plant.growthLevel,
+                        maxGrowthLevel: cell.plant.maxGrowthLevel,
+                        growthConditions: JSON.parse(JSON.stringify(cell.plant.growthConditions))
+                    } : null
+                }))
+            ),
             playerPosition: { ...this.playerPosition },
             numMaxedPlants: this.numMaxedPlants,
             undoable: JSON.parse(JSON.stringify(this.undoable)),
-            redoable: JSON.parse(JSON.stringify(this.redoable))
+            redoable: JSON.parse(JSON.stringify(this.redoable)),
+            gameSettings: { ...this.gameSettings }  // Save full settings
         };
     
         const serializedState = JSON.stringify(gameState);
@@ -320,40 +313,66 @@ export class Game extends Scene {
     }
 
     // Load game state (for both auto-save and manual load)
-    private loadGameState(savedState: GameState) {
-        try {
-            // Reconstruct the grid with proper typing
-            this.grid = savedState.grid.map(row => 
-                row.map(cell => ({
-                    sun: Number(cell.sun),
-                    water: Number(cell.water),
-                    plant: cell.plant ? {
-                        species: String(cell.plant.species),
-                        growthLevel: Number(cell.plant.growthLevel),
-                        maxGrowthLevel: Number(cell.plant.maxGrowthLevel),
-                        growthConditions: JSON.parse(JSON.stringify(cell.plant.growthConditions))
-                    } : null
-                }))
-            );
-    
-            this.playerPosition = { ...savedState.playerPosition };
-            this.numMaxedPlants = savedState.numMaxedPlants || 0;
-            this.undoable = savedState.undoable || [];
-            this.redoable = savedState.redoable || [];
-    
-            if (!this.player) {
-                this.createPlayer();
-            }
-    
-            this.drawGrid();
-            this.repositionPlayer();
-            
-            //console.log('Game loaded successfully - Grid state:', this.grid);
-        } catch (error) {
-            console.error('Error loading game state:', error);
-            alert('Failed to load game state.');
+private loadGameState(savedState: GameState) {
+    try {
+        console.log('Loading state:', savedState); // Debug log
+
+        // Load game settings first
+        this.gameSettings = savedState.gameSettings;
+        
+        // Initialize game properties from settings
+        this.gridSize = this.gameSettings.gridSize;
+        this.sunProbability = this.gameSettings.defaultSunProbability;
+        this.waterProbability = this.gameSettings.defaultWaterProbability;
+        this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
+
+        // Reinitialize weather schedule
+        this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
+        this.updateWeather();
+
+        // Validate and load grid
+        if (!savedState.grid || !Array.isArray(savedState.grid)) {
+            throw new Error('Invalid grid data in saved state');
         }
+
+        // Deep copy grid with explicit type checking
+        this.grid = savedState.grid.map(row => 
+            row.map(cell => ({
+                sun: Number(cell.sun),
+                water: Number(cell.water),
+                plant: cell.plant ? {
+                    species: String(cell.plant.species),
+                    growthLevel: Number(cell.plant.growthLevel),
+                    maxGrowthLevel: Number(cell.plant.maxGrowthLevel),
+                    growthConditions: cell.plant.growthConditions
+                } : null
+            }))
+        );
+
+        // Load other state
+        this.playerPosition = { ...savedState.playerPosition };
+        this.numMaxedPlants = savedState.numMaxedPlants || 0;
+        this.undoable = savedState.undoable || [];
+        this.redoable = savedState.redoable || [];
+
+        // Create player if needed
+        if (!this.player) {
+            this.createPlayer();
+        }
+
+        // Update display
+        this.drawGrid();
+        this.repositionPlayer();
+
+        console.log('Loaded grid:', this.grid); // Debug log
+    } catch (error) {
+        console.error('Error loading game state:', error);
+        alert('Failed to load game state. Starting new game.');
+        this.setDefaultSettings();
+        this.initializeCellResources();
+        this.drawGrid();
     }
+}
     
 
     update() {
@@ -404,7 +423,7 @@ export class Game extends Scene {
                 if (this.numMaxedPlants === this.MAXED_PLANTS_WIN_CONDITION) {
                     //console.log('You win!');
                     this.scene.start('GameOver');
-
+                    this.playerPosition = { row: 0, col: 0 };
                     return;
                 }
 
@@ -765,6 +784,7 @@ interface GameState {
     numMaxedPlants: number;
     undoable: (Grid | Coordinate)[];
     redoable: (Grid | Coordinate)[];
+    gameSettings: Settings;  // Add full game settings
 }
 
 // Interface to define cell resource structure
@@ -803,7 +823,7 @@ interface Settings {
 type weatherKey = keyof typeof Weathers
 const Weathers = Object.freeze({
     SUNNY : {
-        sun: 100,
+        sun: 2,
         water: 1
     },
     RAINY : {
