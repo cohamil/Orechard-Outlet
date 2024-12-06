@@ -8,7 +8,7 @@ export class PopupWindow extends Phaser.GameObjects.Container {
         super(scene, x, y);
 
         // Create background
-        const background = scene.add.rectangle(0, 0, width, height, 0x000000, 0.8);
+        const background = scene.add.rectangle(0, 0, width, height, 0x000000, 0.8).setInteractive();
         this.add(background);
 
         // Create title text

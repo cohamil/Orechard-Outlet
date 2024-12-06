@@ -3,6 +3,7 @@ import { Scene } from 'phaser';
 import { TextButton } from '../text-button';
 import { PopupWindow } from '../popup-window';
 import { parse } from 'yaml';
+import { gameManager } from '../GameManager';
 
 export class Game extends Scene {
     private gridSize: number; // Number of rows and columns
@@ -48,7 +49,6 @@ export class Game extends Scene {
 
     // Save-related properties
     private currentSaveSlot: string | null = null;
-    private autoSaveKey = 'game_autosave';
     private saveSlotPrefix = 'game_save_';
 
     // UI properties
@@ -74,26 +74,26 @@ export class Game extends Scene {
         this.cameras.main.setBackgroundColor(0x87ceeb);
     
         let autoSaveLoaded = false;
-        
-        // Check for auto-save first
-        const autoSave = localStorage.getItem(this.autoSaveKey);
-        if (autoSave) {
-            const confirmLoad = confirm('An auto-save was found. Do you want to continue your previous game?');
-            if (confirmLoad) {
-                try {
-                    const savedState = JSON.parse(autoSave);
-                    if (this.isValidGameState(savedState)) {
-                        this.loadGameState(savedState);
-                        autoSaveLoaded = true;
-                    }
-                } catch (error) {
-                    console.error('Error loading auto-save:', error);
+
+        // Check for auto-save and load if confirmed
+        if (gameManager.getConfirmLoad()) {
+            try {
+                let savedState;
+                const autoSaveString = localStorage.getItem(gameManager.getAutoSaveKey());
+                if (autoSaveString) {
+                    savedState = JSON.parse(autoSaveString);
                 }
+                if (this.isValidGameState(savedState)) {
+                    this.loadGameState(savedState);
+                    autoSaveLoaded = true;
+                }
+            } catch (error) {
+                console.error('Error loading auto-save:', error);
             }
-            else {
-                this.createPlayer();
-                this.movePlayerTo({row: 0, col: 0});
-            }
+        }
+        else {
+            this.createPlayer();
+            this.movePlayerTo({row: 0, col: 0});
         }
     
         // Only load YAML settings if no save was loaded
@@ -261,7 +261,7 @@ export class Game extends Scene {
     // Check for auto-save when game starts
     private checkAutoSave() {
         try {
-            const autoSave = localStorage.getItem(this.autoSaveKey);
+            const autoSave = localStorage.getItem(gameManager.getAutoSaveKey());
             //console.log('Raw auto-save data:', autoSave); // Debugging line
             if (autoSave) {
                 const confirmLoad = confirm('An auto-save was found. Do you want to continue your previous game?');
@@ -345,7 +345,7 @@ export class Game extends Scene {
         
         try {
             if (!slot) {
-                localStorage.setItem(this.autoSaveKey, serializedState);
+                localStorage.setItem(gameManager.getAutoSaveKey(), serializedState);
             } else {
                 localStorage.setItem(this.saveSlotPrefix + slot, serializedState);
                 alert(`Game saved to ${slot}.`);
