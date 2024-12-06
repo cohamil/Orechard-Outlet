@@ -5,6 +5,7 @@ import { MainMenu } from './scenes/MainMenu';
 import { Preloader } from './scenes/Preloader';
 import { Credits } from './scenes/Credits';
 import { Settings } from './scenes/Settings';
+import { Tutorial } from './scenes/Tutorial';
 
 import { Game, Types } from "phaser";
 
@@ -28,6 +29,7 @@ const config: Types.Core.GameConfig = {
         GameOver,
         Credits,
         Settings,
+        Tutorial,
     ]
 };
 

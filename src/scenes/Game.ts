@@ -1,4 +1,6 @@
 import { Scene } from 'phaser';
+
+import { TextButton } from '../text-button';
 import { parse } from 'yaml';
 
 export class Game extends Scene {
@@ -47,6 +49,15 @@ export class Game extends Scene {
     private currentSaveSlot: string | null = null;
     private autoSaveKey = 'game_autosave';
     private saveSlotPrefix = 'game_save_';
+
+    // UI properties
+    private UIElements: { 
+        settingsButton: TextButton | null
+        tutorialButton: TextButton | null 
+    } = {
+        settingsButton: null,
+        tutorialButton: null,
+    }
     
     constructor() {
         super('Game');
@@ -149,6 +160,30 @@ export class Game extends Scene {
         if (!autoSaveLoaded) {
             this.numMaxedPlants = 0;
         }
+
+        // Create base Plants
+        // Lilac, Daisy, Tulip
+        this.createSpecies('0xDA70D6', this.defaultGrowthConditions)
+        this.createSpecies('0x4CBB17', this.defaultGrowthConditions)
+        this.createSpecies('0xF28C28', this.defaultGrowthConditions)
+
+        // Create UI elements
+        // Create Settings button
+        this.UIElements.settingsButton = new TextButton(this, 0, 0, 'Settings', {
+            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            this.saveGame();
+            this.game.scene.start('Settings');
+        });
+
+        // Create tutorial button
+        this.UIElements.tutorialButton = new TextButton(this, 0, 70, 'Tutorial', {
+            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            this.game.scene.start('Tutorial');
+        });
     }
 
     private setDefaultSettings(){
@@ -505,9 +540,9 @@ private loadGameState(savedState: GameState) {
         const startX = (this.cameras.main.width - this.gridSize * this.cellSize) / 2;
         const startY = (this.cameras.main.height - this.gridSize * this.cellSize) / 2;
     
-        // Destroy existing grid elements, but keep the player
+        // Destroy existing grid elements, but keep the player and UI elements
         this.children.list
-            .filter(child => child !== this.player)
+            .filter(child => child !== this.player && !Object.values(this.UIElements).includes(child as any))
             .forEach(child => child.destroy());
     
         for (let row = 0; row < this.gridSize; row++) {
