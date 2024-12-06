@@ -3,25 +3,35 @@ import 'phaser';
 class GameManager extends Phaser.Data.DataManager
 {
     private isPlaying: boolean = false;
+    private autoSaveKey: string = 'game_autosave';
+    private confirmLoad: boolean | null = null;
     
-    constructor ()
-    {
+    constructor () {
         super(new Phaser.Events.EventEmitter());
     }
 
-    setPlaying (value: boolean)
-    {
+    setPlaying (value: boolean){
         this.isPlaying = value;
     }
 
-    getPlaying ()
-    {
+    getPlaying () {
         return this.isPlaying;
     }
 
-    printBool ()
-    {
+    printBool () {
         console.log(this.isPlaying);
+    }
+
+    setConfirmLoad (value: boolean) {
+        this.confirmLoad = value;
+    }
+
+    getConfirmLoad () {
+        return this.confirmLoad;
+    }
+
+    getAutoSaveKey () {
+        return this.autoSaveKey;
     }
 }
 
