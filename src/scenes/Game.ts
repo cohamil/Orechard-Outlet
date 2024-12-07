@@ -26,9 +26,10 @@ export class Game extends Scene {
     private waterProbability: number;
 
     // Constants
-    private MAXED_PLANTS_WIN_CONDITION: number;
     private plantSpecies: Plant[] = [];
+    private MAXED_PLANTS_WIN_CONDITION: number;
     private MAX_SPECIES_LENGTH = 8;
+    private MAX_GROWTH_CONDITIONS = 5;
     private numMaxedPlants = 0;
     private defaultGrowthConditions: GrowthCondition[] = [
         {
@@ -169,12 +170,6 @@ export class Game extends Scene {
             this.numMaxedPlants = 0;
         }
 
-        // Create base Plants
-        // Lilac, Daisy, Tulip
-        this.createSpecies('0xDA70D6', this.defaultGrowthConditions)
-        this.createSpecies('0x4CBB17', this.defaultGrowthConditions)
-        this.createSpecies('0xF28C28', this.defaultGrowthConditions)
-
         // Create UI elements
         this.createUIElements();
     }
@@ -252,6 +247,11 @@ export class Game extends Scene {
         // TBD: add location of spritesheet to use
         if (species.length != this.MAX_SPECIES_LENGTH){
             console.error("Incorrect Species format. Not creating plant.\nGiven Species: " + species);
+            return;
+        }
+        if (conditions.length > this.MAX_GROWTH_CONDITIONS){
+            console.error("Too many Growth Conditions. Not creating plant.\nGiven Species: " + species + 
+                "\n# Conditions: "+conditions.length);
             return;
         }
         const newPlant: Plant = {
@@ -847,7 +847,10 @@ export class Game extends Scene {
     // Convert Grid to/from Byte Array for memory
     private serializeGrid(grid: Grid): ArrayBuffer {
         const growthConditionSize = 3; // Each GrowthCondition is 3 bytes (water, sun, neighbors)
-        const plantFixedSize = 2 + 2 + 4 + this.MAX_SPECIES_LENGTH + growthConditionSize * 4; // Fixed Plant size
+        /*
+        growthLevel, maxGrowthLevel, flag for plant
+        */
+        const plantFixedSize = 2 + 2 + this.MAX_SPECIES_LENGTH + growthConditionSize * this.MAX_GROWTH_CONDITIONS;
         const cellSize = 2 + 1 + plantFixedSize; // 2 bytes (sun, water), 1 byte (plant flag), plant data
     
         // Calculate total buffer size
@@ -925,7 +928,7 @@ export class Game extends Scene {
     private deserializeGrid(buffer: ArrayBuffer): Grid {
         const view = new DataView(buffer);
         const growthConditionSize = 3;
-        const plantFixedSize = 2 + 2 + 4 + this.MAX_SPECIES_LENGTH + growthConditionSize * 4;
+        const plantFixedSize = 2 + 2 + this.MAX_SPECIES_LENGTH + growthConditionSize * this.MAX_GROWTH_CONDITIONS;
     
         let byteOffset = 0;
         const grid: Grid = [];
