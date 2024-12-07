@@ -27,7 +27,8 @@ export class Game extends Scene {
 
     // Constants
     private MAXED_PLANTS_WIN_CONDITION: number;
-    private plantSpecies: Plant[] = []; 
+    private plantSpecies: Plant[] = [];
+    private MAX_SPECIES_LENGTH = 8;
     private numMaxedPlants = 0;
     private defaultGrowthConditions: GrowthCondition[] = [
         {
@@ -249,7 +250,7 @@ export class Game extends Scene {
     private createSpecies(species: string, conditions: GrowthCondition[]){
         // make the object based on parameters and add to plantSpecies array
         // TBD: add location of spritesheet to use
-        if (species.length != 8){
+        if (species.length != this.MAX_SPECIES_LENGTH){
             console.error("Incorrect Species format. Not creating plant.\nGiven Species: " + species);
             return;
         }
@@ -869,9 +870,8 @@ private loadGameState(savedState: GameState) {
 
     // Convert Grid to/from Byte Array for memory
     private serializeGrid(grid: Grid): ArrayBuffer {
-        const speciesMaxLength = 8; // Fixed length for species strings
         const growthConditionSize = 3; // Each GrowthCondition is 3 bytes (water, sun, neighbors)
-        const plantFixedSize = 2 + 2 + 4 + speciesMaxLength + growthConditionSize * 4; // Fixed Plant size
+        const plantFixedSize = 2 + 2 + 4 + this.MAX_SPECIES_LENGTH + growthConditionSize * 4; // Fixed Plant size
         const cellSize = 2 + 1 + plantFixedSize; // 2 bytes (sun, water), 1 byte (plant flag), plant data
     
         // Calculate total buffer size
@@ -902,14 +902,14 @@ private loadGameState(savedState: GameState) {
                     const { species, growthLevel, maxGrowthLevel, growthConditions } = cell.plant;
     
                     // Write species
-                    for (let i = 0; i < speciesMaxLength; i++) {
+                    for (let i = 0; i < this.MAX_SPECIES_LENGTH; i++) {
                         if (i < species.length) {
                             view.setUint8(byteOffset + i, species.charCodeAt(i));
                         } else {
                             view.setUint8(byteOffset + i, 0); // Padding
                         }
                     }
-                    byteOffset += speciesMaxLength;
+                    byteOffset += this.MAX_SPECIES_LENGTH;
     
                     // Write growthLevel and maxGrowthLevel
                     view.setUint8(byteOffset, growthLevel);
@@ -918,23 +918,19 @@ private loadGameState(savedState: GameState) {
                     byteOffset += 1;
     
                     // Write growthConditions
-                    for (let i = 0; i < 4; i++) {
+                    for (let i = 0; i < maxGrowthLevel; i++) {
                         if (i < growthConditions.length) {
                             const condition = growthConditions[i];
-                            view.setUint8(byteOffset, condition.requiredWater);
-                            byteOffset += 1;
-                            view.setUint8(byteOffset, condition.requiredSun);
-                            byteOffset += 1;
-                            view.setUint8(byteOffset, condition.requiredNeighbors);
-                            byteOffset += 1;
+                            view.setInt8(byteOffset, condition.requiredWater);
+                            view.setInt8(byteOffset + 1, condition.requiredSun);
+                            view.setInt8(byteOffset + 2, condition.requiredNeighbors);
+                            byteOffset += 3;
                         } else {
                             // Padding empty growthCondition slots
                             view.setUint8(byteOffset, 0);
-                            byteOffset += 1;
-                            view.setUint8(byteOffset, 0);
-                            byteOffset += 1;
-                            view.setUint8(byteOffset, 0);
-                            byteOffset += 1;
+                            view.setUint8(byteOffset + 1, 0);
+                            view.setUint8(byteOffset + 2, 0);
+                            byteOffset += 3;
                         }
                     }
                 } else {
@@ -949,6 +945,73 @@ private loadGameState(savedState: GameState) {
         }
     
         return buffer;
+    }
+    private deserializeGrid(buffer: ArrayBuffer): Grid {
+        const view = new DataView(buffer);
+        const growthConditionSize = 3;
+        const plantFixedSize = 2 + 2 + 4 + this.MAX_SPECIES_LENGTH + growthConditionSize * 4;
+    
+        let byteOffset = 0;
+        const grid: Grid = [];
+    
+        for (let r = 0; r < this.gridSize; r++) {
+            const row: CellResource[] = [];
+    
+            for (let c = 0; c < this.gridSize; c++) {
+                // Deserialize sun and water
+                const sun = view.getUint8(byteOffset);
+                byteOffset += 1;
+    
+                const water = view.getUint8(byteOffset);
+                byteOffset += 1;
+    
+                // Deserialize plant flag
+                const hasPlant = view.getUint8(byteOffset) === 1;
+                byteOffset += 1;
+    
+                let plant: Plant | null = null;
+                if (hasPlant) {
+                    // Deserialize Plant
+                    let species = "";
+                    for (let i = 0; i < this.MAX_SPECIES_LENGTH; i++) {
+                        const charCode = view.getUint8(byteOffset + i);
+                        if (charCode !== 0) {
+                            species += String.fromCharCode(charCode);
+                        }
+                    }
+                    byteOffset += this.MAX_SPECIES_LENGTH;
+    
+                    const growthLevel = view.getUint8(byteOffset);
+                    byteOffset += 1;
+    
+                    const maxGrowthLevel = view.getUint8(byteOffset);
+                    byteOffset += 1;
+    
+                    const growthConditions: GrowthCondition[] = [];
+                    for (let i = 0; i < maxGrowthLevel; i++) {
+                        const requiredSun = view.getInt8(byteOffset);
+                        const requiredWater = view.getInt8(byteOffset+1);
+                        const requiredNeighbors = view.getInt8(byteOffset+2);
+                        byteOffset += 3;
+    
+                        growthConditions.push({
+                            requiredWater,
+                            requiredSun,
+                            requiredNeighbors,
+                        });
+                    }
+    
+                    plant = { species, growthLevel, maxGrowthLevel, growthConditions };
+                } else {
+                    byteOffset += plantFixedSize; // Skip plant data
+                }
+                const nextCell: CellResource = { sun, water, plant }
+                row.push(nextCell);
+            }
+            grid.push(row);
+        }
+    
+        return grid;
     }
 }
 
@@ -972,13 +1035,13 @@ type Grid = CellResource[][];
 // Interface to define plant structure
 interface Plant {
     species: string;
-    growthLevel: number; // 1-4 growth levels
+    growthLevel: number;
     maxGrowthLevel: number;
     growthConditions: GrowthCondition[];
 }
 interface GrowthCondition {
-    requiredWater: number;
     requiredSun: number;
+    requiredWater: number;
     requiredNeighbors: number;
 }
 interface Coordinate {
