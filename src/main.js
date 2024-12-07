@@ -7,11 +7,11 @@ import { Credits } from './scenes/Credits';
 import { Settings } from './scenes/Settings';
 import { Tutorial } from './scenes/Tutorial';
 
-import { Game, Types } from "phaser";
+import { Game } from "phaser";
 
 //  Find out more information about the Game Config at:
 //  https://newdocs.phaser.io/docs/latest/Phaser.Types.Core.GameConfig
-const config: Types.Core.GameConfig = {
+const config = {
     type: Phaser.AUTO,
     width: 1024,
     height: 768,

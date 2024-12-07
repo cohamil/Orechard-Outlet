@@ -2,15 +2,11 @@ import { Scene } from 'phaser';
 import { TextButton } from '../text-button';
 import { gameManager } from '../GameManager';
 
-export class GameOver extends Scene
+export class Settings extends Scene
 {
-    camera: Phaser.Cameras.Scene2D.Camera;
-    background: Phaser.GameObjects.Image;
-    gameover_text : Phaser.GameObjects.Text;
-
     constructor ()
     {
-        super('GameOver');
+        super('Settings');
     }
 
     create ()
@@ -21,18 +17,30 @@ export class GameOver extends Scene
         this.background = this.add.image(512, 384, 'background');
         this.background.setAlpha(0.5);
 
-        this.gameover_text = this.add.text(512, 384, 'Game Over', {
+        this.title_text = this.add.text(512, 384, 'Settings', {
             fontFamily: 'Arial Black', fontSize: 64, color: '#ffffff',
             stroke: '#000000', strokeThickness: 8,
             align: 'center'
         });
-        this.gameover_text.setOrigin(0.5);
+        this.title_text.setOrigin(0.5);
 
-        const backButton = new TextButton(this, 250, 600, 'Back', {
+        if (gameManager.getPlaying()) {
+            const resumeButton = new TextButton(this, 250, 530, 'Resume', {
+                fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+                stroke: '#000000', strokeThickness: 6
+            }, () => {
+                this.scene.stop('Settings');
+            });
+        }
+        
+        const mainMenuButton = new TextButton(this, 250, 600, 'Main Menu', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
-            localStorage.removeItem(gameManager.getAutoSaveKey());
+            if (gameManager.getPlaying()) {
+                gameManager.setPlaying(false);
+            }
+            this.scene.stop('Game');
             this.scene.start('MainMenu');
         });
     }

@@ -1,18 +1,13 @@
-import { Game } from './scenes/Game';
-import { Grid, CellResource, } from './scenes/Game';
-import {Plant, GrowthCondition } from './PlantsManager';
 
 export class SaveManager {
-    private saveSlotPrefix = 'game_save_';
-    private game: Game;
-    private readonly MAX_SPECIES_LENGTH = 8;
-    private readonly MAX_GROWTH_CONDITIONS = 5;
-
-    constructor(game: Game) {
+    constructor(game) {
+        this.saveSlotPrefix = 'game_save_';
         this.game = game;
+        this.MAX_SPECIES_LENGTH = 8;
+        this.MAX_GROWTH_CONDITIONS = 5;
     }
 
-    public saveGame(slot?: string) {
+    saveGame(slot) {
         const gameState = {
             grid: this.serializeGrid(this.game.getGrid()),
             playerPosition: { ...this.game.getPlayerPosition() },
@@ -25,13 +20,13 @@ export class SaveManager {
             },
             weatherIndex: this.game.getWeatherIndex()
         };
-    
+
         const serializedGrid = btoa(String.fromCharCode(...new Uint8Array(gameState.grid)));
         const stateForStorage = {
             ...gameState,
             grid: serializedGrid
         };
-    
+
         try {
             const serializedState = JSON.stringify(stateForStorage);
             if (!slot) {
@@ -46,7 +41,7 @@ export class SaveManager {
         }
     }
 
-    public loadGame(slot: string) {
+    loadGame(slot) {
         const savedGame = localStorage.getItem(this.saveSlotPrefix + slot);
         if (savedGame) {
             this.loadGameState(JSON.parse(savedGame));
@@ -55,13 +50,12 @@ export class SaveManager {
         }
     }
 
-    public showSaveSlots() {
+    showSaveSlots() {
         const action = prompt('Enter action (save/load) and slot number (1-5), e.g., "save 1" or "load 2":');
         if (!action) return;
 
         const [actionType, slotNumber] = action.toLowerCase().split(' ');
         const slot = `slot${slotNumber}`;
-
         if (actionType === 'save') {
             this.saveGame(slot);
         } else if (actionType === 'load') {
@@ -69,7 +63,7 @@ export class SaveManager {
         }
     }
 
-    public loadGameState(savedState: any) {
+    loadGameState(savedState) {
         try {
             console.log("Loading state:", savedState); // Add debug
             const gridArray = new Uint8Array(atob(savedState.grid).split('').map(c => c.charCodeAt(0)));
@@ -83,36 +77,36 @@ export class SaveManager {
         }
     }
 
-    private serializeGrid(grid: Grid): ArrayBuffer {
+    serializeGrid(grid) {
         const growthConditionSize = 3;
         const plantFixedSize = 2 + 2 + this.MAX_SPECIES_LENGTH + growthConditionSize * this.MAX_GROWTH_CONDITIONS;
         const cellSize = 2 + 1 + plantFixedSize;
-    
+
         const gridSize = grid.length * grid[0].length;
         const bufferSize = gridSize * cellSize;
         const buffer = new ArrayBuffer(bufferSize);
         const view = new DataView(buffer);
-    
+
         let byteOffset = 0;
-    
+
         for (const row of grid) {
             for (const cell of row) {
                 view.setUint8(byteOffset++, cell.sun);
                 view.setUint8(byteOffset++, cell.water);
-    
+
                 if (cell.plant) {
                     view.setUint8(byteOffset++, 1);
-    
+
                     const { species, growthLevel, maxGrowthLevel, growthConditions } = cell.plant;
-    
+
                     for (let i = 0; i < this.MAX_SPECIES_LENGTH; i++) {
                         view.setUint8(byteOffset + i, i < species.length ? species.charCodeAt(i) : 0);
                     }
                     byteOffset += this.MAX_SPECIES_LENGTH;
-    
+
                     view.setUint8(byteOffset++, growthLevel);
                     view.setUint8(byteOffset++, maxGrowthLevel);
-    
+
                     for (let i = 0; i < this.MAX_GROWTH_CONDITIONS; i++) {
                         if (i < growthConditions.length) {
                             const condition = growthConditions[i];
@@ -131,38 +125,31 @@ export class SaveManager {
                 }
             }
         }
-    
+
         return buffer;
     }
 
-    // In SaveManager.ts, update deserializeGrid:
-    private deserializeGrid(buffer: ArrayBuffer): Grid {
+    deserializeGrid(buffer) {
         console.log("Buffer length:", buffer.byteLength); // Debug
         
         const view = new DataView(buffer);
         const growthConditionSize = 3;
         const plantFixedSize = 2 + 2 + this.MAX_SPECIES_LENGTH + growthConditionSize * this.MAX_GROWTH_CONDITIONS;
-
         let byteOffset = 0;
         const gridSize = this.game.getGridSize(); // Get size from game
         console.log("GridSize during deserialize:", gridSize); // Debug
         
-        const grid: Grid = [];
-
+        const grid = [];
         for (let r = 0; r < gridSize; r++) {
-            const row: CellResource[] = [];
-
+            const row = [];
             for (let c = 0; c < gridSize; c++) {
                 const sun = view.getUint8(byteOffset);
                 byteOffset += 1;
-
                 const water = view.getUint8(byteOffset);
                 byteOffset += 1;
-
                 const hasPlant = view.getUint8(byteOffset) === 1;
                 byteOffset += 1;
-
-                let plant: Plant | null = null;
+                let plant = null;
                 if (hasPlant) {
                     let species = "";
                     for (let i = 0; i < this.MAX_SPECIES_LENGTH; i++) {
@@ -172,14 +159,11 @@ export class SaveManager {
                         }
                     }
                     byteOffset += this.MAX_SPECIES_LENGTH;
-
                     const growthLevel = view.getUint8(byteOffset);
                     byteOffset += 1;
-
                     const maxGrowthLevel = view.getUint8(byteOffset);
                     byteOffset += 1;
-
-                    const growthConditions: GrowthCondition[] = [];
+                    const growthConditions = [];
                     for (let i = 0; i < maxGrowthLevel; i++) {
                         growthConditions.push({
                             requiredSun: view.getInt8(byteOffset),
@@ -189,17 +173,14 @@ export class SaveManager {
                         byteOffset += 3;
                     }
                     byteOffset += (this.MAX_GROWTH_CONDITIONS - maxGrowthLevel) * 3;
-
                     plant = { species, growthLevel, maxGrowthLevel, growthConditions };
                 } else {
                     byteOffset += plantFixedSize;
                 }
-
                 row.push({ sun, water, plant });
             }
             grid.push(row);
         }
-
         console.log("Deserialized grid:", grid); // Debug
         return grid;
     }

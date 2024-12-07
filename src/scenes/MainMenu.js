@@ -1,14 +1,10 @@
-import { Scene, GameObjects } from 'phaser';
+import { Scene } from 'phaser';
 import { TextButton } from '../text-button';
 import { PopupWindow } from '../popup-window';
 import { gameManager } from '../GameManager';
 
 export class MainMenu extends Scene
 {
-    background: GameObjects.Image;
-    logo: GameObjects.Image;
-    title: GameObjects.Text;
-
     constructor ()
     {
         super('MainMenu');

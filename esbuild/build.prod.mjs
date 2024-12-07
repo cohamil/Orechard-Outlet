@@ -18,7 +18,7 @@ let msgPhaser = {
 
 const builder = async () => {
     await build({
-        entryPoints: ['./src/main.ts'],
+        entryPoints: ['./src/main.js'],
         bundle: true,
         minify: true,
         sourcemap: false,
