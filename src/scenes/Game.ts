@@ -642,9 +642,20 @@ private loadGameState(savedState: GameState) {
                         .setOrigin(0)
                         .setStrokeStyle(1, 0x000000);
 
+                    // Format growth requirements for display
+                    let growthRequirementString;
+                    if (plant.growthLevel === plant.maxGrowthLevel) {
+                        growthRequirementString = 'Plant is Fully Grown!';
+                    }
+                    else {
+                        const condition = plant.growthConditions[plant.growthLevel];
+                        const neighborsString = condition.requiredNeighbors === -1 ? 'Any' : condition.requiredNeighbors;
+                        growthRequirementString = `Growth Requirements For Level Up:\nWater Level: ${condition.requiredWater}\nSun Level: ${condition.requiredSun}\nNumber of Neighbors: ${neighborsString}`;
+                    }
+                    
                     // Create a popup window for plant information
                     const plantPopup = new PopupWindow(this, this.cameras.main.width / 2, this.cameras.main.height / 2, 700, 500, 'Plant Info', 
-                        `Species: ${plant.species}\nGrowth Level: ${plant.growthLevel}\nMax Growth Level: ${plant.maxGrowthLevel}`, {
+                        `Species: ${plant.species}\nMax Growth Level: ${plant.maxGrowthLevel}\nGrowth Level: ${plant.growthLevel}\n\n${growthRequirementString}`, {
                         fontFamily: 'Arial Black', fontSize: 24, color: '#ffffff',
                         stroke: '#000000', strokeThickness: 6
                     });

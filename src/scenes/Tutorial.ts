@@ -34,7 +34,7 @@ export class Tutorial extends Scene
         const controlsTitle = "Controls (Keyboard)";
         const controlsContent = "Move: WASD\nSow/Harvest Plants: Arrow Keys\nAdvance Turn: T\nUndo Action: Z\nRedo Action: X\nLoad/Save Game: L";
         
-        const controlsButton = new TextButton(this, 100, 200, 'Controls', {
+        const controlsButton = new TextButton(this, 100, 150, 'Controls', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
@@ -47,7 +47,7 @@ export class Tutorial extends Scene
         const goalTitle = "Goal";
         const goalContent = "Harvest 3 fully grown plants in the \ngarden to win the game.\n\nBe mindful of each species' growth requirements.\n\nClick on a plant to view its growth \nlevel/requirements.";
 
-        const goalButton = new TextButton(this, 100, 300, 'Goal', {
+        const goalButton = new TextButton(this, 100, 250, 'Goal', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
@@ -60,7 +60,7 @@ export class Tutorial extends Scene
         const gardenTitle = "Garden";
         const gardenContent = "The garden is represented by a grid system.\n\nEach cell contains data regarding sun/water levels,\nwhere a yellow cell contains sun and a blue cell \ncontains water. Plants will need both in a\n cell to grow.\n\nDarker shades of blue represent higher \nwater levels. Higher leveled plants will require\nmore water to grow.";
 
-        const gardenButton = new TextButton(this, 100, 400, 'Garden', {
+        const gardenButton = new TextButton(this, 100, 350, 'Garden', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
@@ -71,14 +71,27 @@ export class Tutorial extends Scene
 
         // Turns tutorial
         const turnsTitle = "Turns";
-        const turnsContent = "Pressing 'T' will advance your turn.\nEach turn, the garden will advance by one day.\n\nEach plant will grow by one level if it meets\nits growth requirements from the previous turn.\n\nClick on a plant to view its growth \nlevel/requirements.";
+        const turnsContent = "Pressing 'T' will advance your turn.\nEach turn, the garden will advance by one day.\n\nEach plant will grow by one level if it meets\nits growth requirements from the previous turn.\n\nThe next turn's weather forecast is displayed\nat the top of the screen.";
 
-        const turnsButton = new TextButton(this, 100, 500, 'Turns', {
+        const turnsButton = new TextButton(this, 100, 450, 'Turns', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
             popupWindow.changeTitle(turnsTitle);
             popupWindow.changeContent(turnsContent);
+            if (!popupWindow.isVisibile()) popupWindow.setVisibility(true);
+        });
+
+        // Weather tutorial
+        const weatherTitle = "Weather";
+        const weatherContent = "Each day, the weather will change.The weather\naffects the garden's sun/water levels.\n\nThe weather forecast for the next day is displayed\nat the top of the screen.\n\nTable of Weather Effects:\nNormal: No effect\nSunny: Doubled Chances of Sun\nRainy: Doubled Chances of Water\nCloudy: Halved Chances of Sun";
+
+        const weatherButton = new TextButton(this, 100, 550, 'Weather', {
+            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            popupWindow.changeTitle(weatherTitle);
+            popupWindow.changeContent(weatherContent);
             if (!popupWindow.isVisibile()) popupWindow.setVisibility(true);
         });
 
