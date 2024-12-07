@@ -27,7 +27,8 @@ export class Game extends Scene {
 
     // Constants
     private MAXED_PLANTS_WIN_CONDITION: number;
-    private plantSpecies: Plant[] = []; 
+    private plantSpecies: Plant[] = [];
+    private MAX_SPECIES_LENGTH = 8;
     private numMaxedPlants = 0;
     private defaultGrowthConditions: GrowthCondition[] = [
         {
@@ -249,6 +250,10 @@ export class Game extends Scene {
     private createSpecies(species: string, conditions: GrowthCondition[]){
         // make the object based on parameters and add to plantSpecies array
         // TBD: add location of spritesheet to use
+        if (species.length != this.MAX_SPECIES_LENGTH){
+            console.error("Incorrect Species format. Not creating plant.\nGiven Species: " + species);
+            return;
+        }
         const newPlant: Plant = {
             species: species,
             growthLevel: 0,
@@ -655,7 +660,7 @@ private loadGameState(savedState: GameState) {
                     
                     // Create a popup window for plant information
                     const plantPopup = new PopupWindow(this, this.cameras.main.width / 2, this.cameras.main.height / 2, 700, 500, 'Plant Info', 
-                        `Species: ${plant.species}\nMax Growth Level: ${plant.maxGrowthLevel}\nGrowth Level: ${plant.growthLevel}\n\n${growthRequirementString}`, {
+                        `Species: ${SpeciesName[plant.species as keyof typeof SpeciesName]}\nMax Growth Level: ${plant.maxGrowthLevel}\nGrowth Level: ${plant.growthLevel}\n\n${growthRequirementString}`, {
                         fontFamily: 'Arial Black', fontSize: 24, color: '#ffffff',
                         stroke: '#000000', strokeThickness: 6
                     });
@@ -666,7 +671,7 @@ private loadGameState(savedState: GameState) {
                         .setOrigin(0)
                         .setAlpha(0.001)
                         .setInteractive()
-                        .on('pointerdown', () => plantPopup.setVisibility(true));
+                        .on('pointerup', () => plantPopup.setVisibility(true));
                 }
             }
         }
@@ -826,6 +831,10 @@ private loadGameState(savedState: GameState) {
         const cellResource = this.grid[cell.row][cell.col];
 
         // Randomly select a plant species
+        if (this.plantSpecies.length === 0){
+            console.error("No available plants to sow!");
+            return;
+        }
         const plantSpeciesIndex = Math.floor(Math.random() * this.plantSpecies.length);
         const newPlant: Plant = {...this.plantSpecies[plantSpeciesIndex]};
         cellResource.plant = newPlant;
@@ -869,6 +878,152 @@ private loadGameState(savedState: GameState) {
             }
         }
     }
+
+    // Convert Grid to/from Byte Array for memory
+    private serializeGrid(grid: Grid): ArrayBuffer {
+        const growthConditionSize = 3; // Each GrowthCondition is 3 bytes (water, sun, neighbors)
+        const plantFixedSize = 2 + 2 + 4 + this.MAX_SPECIES_LENGTH + growthConditionSize * 4; // Fixed Plant size
+        const cellSize = 2 + 1 + plantFixedSize; // 2 bytes (sun, water), 1 byte (plant flag), plant data
+    
+        // Calculate total buffer size
+        const gridSize = grid.length * grid[0].length;
+        const bufferSize = gridSize * cellSize;
+        const buffer = new ArrayBuffer(bufferSize);
+        const view = new DataView(buffer);
+    
+        let byteOffset = 0;
+    
+        // Serialize each cell in the grid
+        for (const row of grid) {
+            for (const cell of row) {
+                // Serialize sun
+                view.setUint8(byteOffset, cell.sun);
+                byteOffset += 1;
+    
+                // Serialize water
+                view.setUint8(byteOffset, cell.water);
+                byteOffset += 1;
+    
+                // Serialize plant presence flag (1 = Plant exists, 0 = null)
+                if (cell.plant) {
+                    view.setUint8(byteOffset, 1); // Flag
+                    byteOffset += 1;
+    
+                    // Serialize Plant
+                    const { species, growthLevel, maxGrowthLevel, growthConditions } = cell.plant;
+    
+                    // Write species
+                    for (let i = 0; i < this.MAX_SPECIES_LENGTH; i++) {
+                        if (i < species.length) {
+                            view.setUint8(byteOffset + i, species.charCodeAt(i));
+                        } else {
+                            view.setUint8(byteOffset + i, 0); // Padding
+                        }
+                    }
+                    byteOffset += this.MAX_SPECIES_LENGTH;
+    
+                    // Write growthLevel and maxGrowthLevel
+                    view.setUint8(byteOffset, growthLevel);
+                    byteOffset += 1;
+                    view.setUint8(byteOffset, maxGrowthLevel);
+                    byteOffset += 1;
+    
+                    // Write growthConditions
+                    for (let i = 0; i < maxGrowthLevel; i++) {
+                        if (i < growthConditions.length) {
+                            const condition = growthConditions[i];
+                            view.setInt8(byteOffset, condition.requiredWater);
+                            view.setInt8(byteOffset + 1, condition.requiredSun);
+                            view.setInt8(byteOffset + 2, condition.requiredNeighbors);
+                            byteOffset += 3;
+                        } else {
+                            // Padding empty growthCondition slots
+                            view.setUint8(byteOffset, 0);
+                            view.setUint8(byteOffset + 1, 0);
+                            view.setUint8(byteOffset + 2, 0);
+                            byteOffset += 3;
+                        }
+                    }
+                } else {
+                    // No plant; write plant flag as 0 and skip plant data
+                    view.setUint8(byteOffset, 0);
+                    byteOffset += 1;
+    
+                    // Skip space allocated for a Plant object
+                    byteOffset += plantFixedSize;
+                }
+            }
+        }
+    
+        return buffer;
+    }
+    private deserializeGrid(buffer: ArrayBuffer): Grid {
+        const view = new DataView(buffer);
+        const growthConditionSize = 3;
+        const plantFixedSize = 2 + 2 + 4 + this.MAX_SPECIES_LENGTH + growthConditionSize * 4;
+    
+        let byteOffset = 0;
+        const grid: Grid = [];
+    
+        for (let r = 0; r < this.gridSize; r++) {
+            const row: CellResource[] = [];
+    
+            for (let c = 0; c < this.gridSize; c++) {
+                // Deserialize sun and water
+                const sun = view.getUint8(byteOffset);
+                byteOffset += 1;
+    
+                const water = view.getUint8(byteOffset);
+                byteOffset += 1;
+    
+                // Deserialize plant flag
+                const hasPlant = view.getUint8(byteOffset) === 1;
+                byteOffset += 1;
+    
+                let plant: Plant | null = null;
+                if (hasPlant) {
+                    // Deserialize Plant
+                    let species = "";
+                    for (let i = 0; i < this.MAX_SPECIES_LENGTH; i++) {
+                        const charCode = view.getUint8(byteOffset + i);
+                        if (charCode !== 0) {
+                            species += String.fromCharCode(charCode);
+                        }
+                    }
+                    byteOffset += this.MAX_SPECIES_LENGTH;
+    
+                    const growthLevel = view.getUint8(byteOffset);
+                    byteOffset += 1;
+    
+                    const maxGrowthLevel = view.getUint8(byteOffset);
+                    byteOffset += 1;
+    
+                    const growthConditions: GrowthCondition[] = [];
+                    for (let i = 0; i < maxGrowthLevel; i++) {
+                        const requiredSun = view.getInt8(byteOffset);
+                        const requiredWater = view.getInt8(byteOffset+1);
+                        const requiredNeighbors = view.getInt8(byteOffset+2);
+                        byteOffset += 3;
+    
+                        growthConditions.push({
+                            requiredWater,
+                            requiredSun,
+                            requiredNeighbors,
+                        });
+                    }
+    
+                    plant = { species, growthLevel, maxGrowthLevel, growthConditions };
+                } else {
+                    byteOffset += plantFixedSize; // Skip plant data
+                }
+                const nextCell: CellResource = { sun, water, plant }
+                row.push(nextCell);
+            }
+            grid.push(row);
+        }
+    
+        return grid;
+    }
 }
 
 // Interface for game state
@@ -888,22 +1043,21 @@ interface CellResource {
     plant: Plant | null; // Plant object or null if no plant
 }
 type Grid = CellResource[][];
-
-interface Coordinate {
-    row: number;
-    col: number;
-}
 // Interface to define plant structure
 interface Plant {
     species: string;
-    growthLevel: number; // 1-4 growth levels
+    growthLevel: number;
     maxGrowthLevel: number;
     growthConditions: GrowthCondition[];
 }
 interface GrowthCondition {
-    requiredWater: number;
     requiredSun: number;
+    requiredWater: number;
     requiredNeighbors: number;
+}
+interface Coordinate {
+    row: number;
+    col: number;
 }
 // Interface to define game settings
 interface Settings {
@@ -933,3 +1087,10 @@ const Weathers = Object.freeze({
         water: 1
     }
 })
+
+// Enum to display Plant Names
+enum SpeciesName {
+    "0xDA70D6" = "Lilac",
+    "0x4CBB17" = "Daisy",
+    "0xF28C28" = "Tulip"
+}
