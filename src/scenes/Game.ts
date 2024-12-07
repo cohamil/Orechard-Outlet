@@ -5,13 +5,13 @@ import { TextButton } from '../text-button';
 import { parse } from 'yaml';
 import { gameManager } from '../GameManager';
 import { PlantsManager, Plant, GrowthCondition } from '../PlantsManager';
+import { PlayerActions } from '../PlayerActions';
 
 export class Game extends Scene {
     private gridSize: number; // Number of rows and columns
     private cellSize: number = 64; // Size of each cell in pixels
     private player!: Phaser.GameObjects.Rectangle; // The player's visual representation
     private playerPosition: Coordinate = { row: 0, col: 0 }; // Tracks the player's position on the grid
-    private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private undoable: (Grid | Coordinate)[];   // Tracks undoable actions. If needed, can be changed to an any[] array
     private redoable: (Grid | Coordinate)[];    // Tracks redoable actions.  ""
     private gameSettings: Settings;              // Define how game should be played out
@@ -52,6 +52,9 @@ export class Game extends Scene {
     // Add PlantsManager here
     private plantsManager!: PlantsManager;
 
+    // Add PlayerActions here
+    private playerActions!: PlayerActions;
+
     // Save-related properties
     private currentSaveSlot: string | null = null;
     private saveSlotPrefix = 'game_save_';
@@ -80,6 +83,9 @@ export class Game extends Scene {
 
         // Initialize PlantsManager
         this.plantsManager = new PlantsManager(this.MAX_SPECIES_LENGTH, this);
+
+        // Initialize PlayerActions
+        this.playerActions = new PlayerActions(this);
 
         // Create initial plant species using plantsManager
         this.plantsManager.createSpecies("0xDA70D6", this.defaultGrowthConditions);
@@ -142,7 +148,10 @@ export class Game extends Scene {
 
             // Draw grid with initial resources
             this.initializeCellResources();
-            this.drawGrid();
+            
+            // Redraw the grid to reflect new resources
+            gameManager.setPlayer(this.player);
+            gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
         }
     
         // Set up keyboard input
@@ -150,9 +159,6 @@ export class Game extends Scene {
             console.error('Keyboard input system is not available.');
             return;
         }
-    
-        this.cursors = this.input.keyboard.createCursorKeys();
-        this.input.keyboard.addKeys('W,S,A,D,T,X,L,M');
     
         // Add key listeners for save/load
         const loadKey = this.input.keyboard.addKey('L');
@@ -204,6 +210,8 @@ export class Game extends Scene {
         }, () => {
             this.game.scene.start('Tutorial');
         });
+
+        gameManager.setUIElements(this.UIElements.forecastText, this.UIElements.settingsButton, this.UIElements.tutorialButton);
     }
 
     // Update the forecacst UI
@@ -245,36 +253,6 @@ export class Game extends Scene {
             }
         }
     }
-
-    // Check for auto-save when game starts
-    private checkAutoSave() {
-        try {
-            const autoSave = localStorage.getItem(gameManager.getAutoSaveKey());
-            //console.log('Raw auto-save data:', autoSave); // Debugging line
-            if (autoSave) {
-                const confirmLoad = confirm('An auto-save was found. Do you want to continue your previous game?');
-                if (confirmLoad) {
-                    try {
-                        const savedState = JSON.parse(autoSave);
-                        //console.log('Parsed auto-save state:', savedState); // Debugging line
-    
-                        if (this.isValidGameState(savedState)) {
-                            this.loadGameState(savedState);
-                        } else {
-                            throw new Error('Invalid game state detected in auto-save.');
-                        }
-                    } catch (parseError) {
-                        console.error('Error parsing auto-save:', parseError);
-                        alert('Failed to load auto-save due to data corruption. Starting a new game.');
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error during auto-save check:', error);
-            alert('Failed to load auto-save. Starting a new game.');
-        }
-    }
-    
 
     private isValidGameState(state: any): state is GameState {
         return (
@@ -381,7 +359,10 @@ export class Game extends Scene {
             this.updateWeather();
     
             this.createPlayer();
-            this.drawGrid();
+            
+            // Redraw the grid to reflect new resources
+            gameManager.setPlayer(this.player);
+            gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
             this.repositionPlayer();
     
         } catch (error) {
@@ -389,13 +370,16 @@ export class Game extends Scene {
             alert('Failed to load game state. Starting new game.');
             this.setDefaultSettings();
             this.initializeCellResources();
-            this.drawGrid();
+            
+            // Redraw the grid to reflect new resources
+            gameManager.setPlayer(this.player);
+            gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
         }
     }
 
     update() {
-        // Handle player movement
-        this.handlePlayerMovement();
+        // Handle player actions
+        this.handlePlayerActions();
     }
 
     // Initialize cell resources with random generation
@@ -461,7 +445,9 @@ export class Game extends Scene {
             }
         }
         // Redraw the grid to reflect new resources
-        this.drawGrid();
+        //this.drawGrid();
+        gameManager.setPlayer(this.player);
+        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
 
         // Auto-save after each turn
         this.saveGame();
@@ -475,82 +461,6 @@ export class Game extends Scene {
         }else{
             this.resourceModifier.sun = 1;
             this.resourceModifier.water = 1;
-        }
-    }
-
-    private drawGrid() {
-        const startX = (this.cameras.main.width - this.gridSize * this.cellSize) / 2;
-        const startY = (this.cameras.main.height - this.gridSize * this.cellSize) / 2;
-    
-        // Destroy existing grid elements, but keep the player and UI elements
-        this.children.list
-            .filter(child => child !== this.player && !Object.values(this.UIElements).includes(child as any))
-            .forEach(child => child.destroy());
-
-        let cellColor = 0xcccccc; // Default gray
-    
-        for (let row = 0; row < this.gridSize; row++) {
-            for (let col = 0; col < this.gridSize; col++) {
-                const x = startX + col * this.cellSize;
-                const y = startY + row * this.cellSize;
-    
-                // Get cell resources
-                const cellResource = this.grid[row][col];
-    
-                // Determine cell color based on resources
-                cellColor = 0xcccccc; // Default gray
-                if (cellResource.sun && cellResource.water) {
-                    // If both sun and water, create a diagonal split cell
-                    const sunPath = this.add
-                        .polygon(x, y, [
-                            0, 0,
-                            this.cellSize - 2, this.cellSize - 2,
-                            0, this.cellSize - 2
-                        ], 0xffff00)
-                        .setOrigin(0)
-                        .setStrokeStyle(1, 0x000000);
-                    
-                    const waterPath = this.add
-                        .polygon(x, y, [
-                            this.cellSize - 2, 0,
-                            this.cellSize - 2, this.cellSize - 2,
-                            0, 0
-                        ], this.getWaterColor(cellResource.water))
-                        .setOrigin(0)
-                        .setStrokeStyle(1, 0x000000);
-                } else if (cellResource.sun) {
-                    //console.log('Cell has sun');
-                    // Sun-only cell (yellow)
-                    cellColor = 0xffff00;
-                } else if (cellResource.water) {
-                    //console.log('Cell has water');
-                    // Water cell (blue with intensity based on water level)
-                    cellColor = this.getWaterColor(cellResource.water);
-                }
-    
-                // Draw the base cell if not split
-                if (!cellResource.sun || !cellResource.water) {
-                    this.add
-                        .rectangle(x, y, this.cellSize - 2, this.cellSize - 2, cellColor)
-                        .setOrigin(0)
-                        .setStrokeStyle(1, 0x000000);
-                }
-            }
-        }
-
-        this.plantsManager.drawPlants(this.cellSize, startX, startY, cellColor, this.grid);
-    
-        // Reposition the player after redrawing grid
-        this.repositionPlayer();
-    }
-
-    // Helper method to get water color based on moisture level
-    private getWaterColor(waterLevel: number): number {
-        switch(waterLevel) {
-            case 1: return 0x87CEEB;   // Light blue
-            case 2: return 0x4682B4;   // Medium blue
-            case 3: return 0x000080;   // Dark blue
-            default: return 0xcccccc;  // Default gray if no water
         }
     }
 
@@ -586,80 +496,22 @@ export class Game extends Scene {
     }
     
 
-    private handlePlayerMovement() {
-        const { row, col } = this.playerPosition;
-    
-        // Ensure cursors and keyboard input are initialized
-        if (!this.cursors || !this.input.keyboard) {
-            console.warn('Keyboard input or cursors are not available.');
-            return;
-        }
-    
-        // WASD Keys for Movement
-        if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[65])) {
-            if (col > 0) { 
-                this.undoable.push(this.playerPosition);
-                this.redoable = [];
-                this.movePlayerTo({row: row, col: col - 1}); // Move left
-            }
-        }
-        else if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[68])) {
-            if (col < this.gridSize - 1) {
-                this.undoable.push(this.playerPosition);
-                this.redoable = [];
-                this.movePlayerTo({row: row, col: col + 1}); // Move right
-            }
-        }
-        else if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[87])) {
-            if (row > 0) {
-                this.undoable.push(this.playerPosition);
-                this.redoable = [];
-                this.movePlayerTo({row: row - 1, col: col}); // Move up
-            }
-        }
-        else if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.keys[83])) {
-            if (row < this.gridSize - 1) {
-                this.undoable.push(this.playerPosition);
-                this.redoable = [];
-                this.movePlayerTo({row: row + 1, col: col}); // Move down
-            }
+    private handlePlayerActions() {
+        const movementDirection = this.playerActions.checkForPlayerMovement(this.gridSize, this.playerPosition, this.undoable);
+        if (movementDirection) {
+            this.redoable = [];
+            this.movePlayerTo(movementDirection);
         }
 
-        // Arrow Keys for Plant Interaction
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
-            if (col > 0) {
-                this.undoable.push(this.grid);
-                this.redoable = [];
-                this.grid = JSON.parse(JSON.stringify(this.grid));
-                this.handlePlantInteraction({row: row, col: col - 1});
-            }
-        }
-        else if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
-            if (col < this.gridSize - 1) {
-                this.undoable.push(this.grid);
-                this.redoable = [];
-                this.grid = JSON.parse(JSON.stringify(this.grid));
-                this.handlePlantInteraction({row: row, col: col + 1});
-            }
-        }
-        else if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
-            if (row > 0) {
-                this.undoable.push(this.grid);
-                this.redoable = [];
-                this.grid = JSON.parse(JSON.stringify(this.grid));
-                this.handlePlantInteraction({row: row - 1, col: col});
-            }
-        }
-        else if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
-            if (row < this.gridSize - 1) {
-                this.undoable.push(this.grid);
-                this.redoable = [];
-                this.grid = JSON.parse(JSON.stringify(this.grid));
-                this.handlePlantInteraction({row: row + 1, col: col});
-            }
+        const plantInteractionDirection = this.playerActions.checkforPlantInteraction(this.gridSize, this.playerPosition, this.grid, this.undoable);
+        if (plantInteractionDirection) {
+            this.redoable = [];
+            this.grid = JSON.parse(JSON.stringify(this.grid));
+            this.handlePlantInteraction(plantInteractionDirection);
         }
     }
 
+    // Method to move the player to a specific cell
     private movePlayerTo(cell: Coordinate) {
         const startX = (this.cameras.main.width - this.gridSize * this.cellSize) / 2;
         const startY = (this.cameras.main.height - this.gridSize * this.cellSize) / 2;
@@ -676,9 +528,12 @@ export class Game extends Scene {
     // Method to handle plant interaction
     private handlePlantInteraction(cell: Coordinate) {
         this.plantsManager.handlePlantInteraction(cell, this.grid);
+        this.saveGame();
 
         // Redraw the grid to reflect plant changes
-        this.drawGrid();
+        //this.drawGrid();
+        gameManager.setPlayer(this.player);
+        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
     }
 
     // Handle UNDO and REDO operations
@@ -688,7 +543,7 @@ export class Game extends Scene {
             if (Array.isArray(action)){         // cheap way to check if action is a Grid
                 this.redoable.push(this.grid);
                 this.grid = action;
-                this.drawGrid();
+                gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
             }else{                              // otherwise action is a Coordinate
                 this.redoable.push(this.playerPosition);
                 this.movePlayerTo(action)
@@ -701,7 +556,7 @@ export class Game extends Scene {
             if (Array.isArray(action)){
                 this.undoable.push(this.grid);
                 this.grid = action;
-                this.drawGrid();
+                gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
             }else{
                 this.undoable.push(this.playerPosition)
                 this.movePlayerTo(action)
@@ -765,8 +620,8 @@ export class Game extends Scene {
                     for (let i = 0; i < maxGrowthLevel; i++) {
                         if (i < growthConditions.length) {
                             const condition = growthConditions[i];
-                            view.setInt8(byteOffset, condition.requiredWater);
-                            view.setInt8(byteOffset + 1, condition.requiredSun);
+                            view.setInt8(byteOffset, condition.requiredSun);
+                            view.setInt8(byteOffset + 1, condition.requiredWater);
                             view.setInt8(byteOffset + 2, condition.requiredNeighbors);
                             byteOffset += 3;
                         } else {
