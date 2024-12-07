@@ -6,6 +6,7 @@ import { parse } from 'yaml';
 import { gameManager } from '../GameManager';
 import { PlantsManager, Plant, GrowthCondition } from '../PlantsManager';
 import { PlayerActions } from '../PlayerActions';
+import { SaveManager } from '../SaveManager';
 
 export class Game extends Scene {
     private gridSize: number; // Number of rows and columns
@@ -14,7 +15,8 @@ export class Game extends Scene {
     private playerPosition: Coordinate = { row: 0, col: 0 }; // Tracks the player's position on the grid
     private undoable: (Grid | Coordinate)[];   // Tracks undoable actions. If needed, can be changed to an any[] array
     private redoable: (Grid | Coordinate)[];    // Tracks redoable actions.  ""
-    private gameSettings: Settings;              // Define how game should be played out
+    private gameSettings: Settings;
+                  // Define how game should be played out
     private weatherSchedule: {next() : weatherKey | null, getNext(): weatherKey | null};
     private resourceModifier = {
         sun: 1,
@@ -29,7 +31,6 @@ export class Game extends Scene {
     // Constants
     private MAXED_PLANTS_WIN_CONDITION: number;
     private MAX_SPECIES_LENGTH = 8;
-    private MAX_GROWTH_CONDITIONS = 5;
     private numMaxedPlants = 0;
     private defaultGrowthConditions: GrowthCondition[] = [
         {
@@ -55,9 +56,8 @@ export class Game extends Scene {
     // Add PlayerActions here
     private playerActions!: PlayerActions;
 
-    // Save-related properties
-    private currentSaveSlot: string | null = null;
-    private saveSlotPrefix = 'game_save_';
+    //add SaveManager here
+    private saveManager: SaveManager;
 
     // UI properties
     private UIElements: { 
@@ -72,6 +72,7 @@ export class Game extends Scene {
     
     constructor() {
         super('Game');
+        this.saveManager = new SaveManager(this);
     }
 
     preload() {
@@ -80,76 +81,58 @@ export class Game extends Scene {
 
     create() {
         this.cameras.main.setBackgroundColor(0x87ceeb);
-
-        // Initialize PlantsManager
+    
+        // Initialize managers
         this.plantsManager = new PlantsManager(this.MAX_SPECIES_LENGTH, this);
-
-        // Initialize PlayerActions
         this.playerActions = new PlayerActions(this);
-
-        // Create initial plant species using plantsManager
+    
+        // Create initial plant species
         this.plantsManager.createSpecies("0xDA70D6", this.defaultGrowthConditions);
         this.plantsManager.createSpecies("0x4CBB17", this.defaultGrowthConditions);
         this.plantsManager.createSpecies("0xF28C28", this.defaultGrowthConditions);
     
+        // Always load YAML settings first
+        if (this.cache.text.has('yamlData')) {
+            try {
+                this.gameSettings = parse(this.cache.text.get('yamlData'));
+                // Initialize core settings immediately
+                this.gridSize = this.gameSettings.gridSize;
+                this.sunProbability = this.gameSettings.defaultSunProbability;
+                this.waterProbability = this.gameSettings.defaultWaterProbability;
+                this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
+            } catch (error) {
+                console.error('Error parsing YAML file. Using defaults.');
+                this.setDefaultSettings();
+            }
+        } else {
+            console.error("YAML file not found, using defaults.");
+            this.setDefaultSettings();
+        }
+    
         let autoSaveLoaded = false;
-
-        // Check for auto-save and load if confirmed
+    
+        // Try loading autosave
         if (gameManager.getConfirmLoad()) {
             try {
-                let savedState;
                 const autoSaveString = localStorage.getItem(gameManager.getAutoSaveKey());
                 if (autoSaveString) {
-                    savedState = JSON.parse(autoSaveString);
-                }
-                if (this.isValidGameState(savedState)) {
-                    this.loadGameState(savedState);
-                    autoSaveLoaded = true;
+                    const savedState = JSON.parse(autoSaveString);
+                    if (this.isValidGameState(savedState)) {
+                        this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
+                        this.saveManager.loadGameState(savedState);
+                        autoSaveLoaded = true;
+                    }
                 }
             } catch (error) {
                 console.error('Error loading auto-save:', error);
             }
         }
-        else {
-            this.createPlayer();
-            this.movePlayerTo({row: 0, col: 0});
-        }
-
-        // Only load YAML settings if no save was loaded
-        if (!autoSaveLoaded) {
-            if (this.cache.text.has('yamlData')) {
-                try {
-                    this.gameSettings = parse(this.cache.text.get('yamlData'));
-                } catch (error) {
-                    console.error('Error parsing YAML file. Using defaults.');
-                    this.setDefaultSettings();
-                }
-            } else {
-                console.error("YAML file not found, using defaults.");
-                this.setDefaultSettings();
-            }
     
-            // Initialize with YAML/default settings
-            this.gridSize = this.gameSettings.gridSize;
-            this.sunProbability = this.gameSettings.defaultSunProbability;
-            this.waterProbability = this.gameSettings.defaultWaterProbability;
-            this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
-            
-            // Initialize weather
-            let weatherKeys = this.gameSettings.weatherSchedule;
-            if (!weatherKeys.every(key => Object.keys(Weathers).includes(key))) {
-                console.error('YAML: weatherSchedule has unknown options, using defaults');
-                weatherKeys = [];
-            }
-            this.weatherSchedule = this.createIterator(weatherKeys);
+        if (!autoSaveLoaded) {
+            this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
             this.updateWeather();
-
             this.createPlayer();
-
-            // Draw grid with initial resources
             this.initializeCellResources();
-            
-            // Redraw the grid to reflect new resources
             gameManager.setPlayer(this.player);
             gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
         }
@@ -162,7 +145,7 @@ export class Game extends Scene {
     
         // Add key listeners for save/load
         const loadKey = this.input.keyboard.addKey('L');
-        loadKey.on('down', this.showSaveSlots, this);
+        loadKey.on('down', () => this.saveManager.showSaveSlots(), this);
         
         // Add a key listener for advancing turns
         const turnKey = this.input.keyboard.addKey('T');
@@ -180,9 +163,63 @@ export class Game extends Scene {
         if (!autoSaveLoaded) {
             this.numMaxedPlants = 0;
         }
-
+    
         // Create UI elements
         this.createUIElements();
+    }
+
+    public getGrid(): Grid { return this.grid; }
+    public getPlayerPosition(): Coordinate { return this.playerPosition; }
+    public getNumMaxedPlants(): number { return this.numMaxedPlants; }
+    public getUndoable(): (Grid | Coordinate)[] { return this.undoable; }
+    public getRedoable(): (Grid | Coordinate)[] { return this.redoable; }
+    public getGameSettings(): Settings { return this.gameSettings; }
+    public getAutoSaveKey(): string { return gameManager.getAutoSaveKey(); }
+    public getGridSize(): number { return this.gridSize; }
+    public getWeatherIndex(): number {
+        return (this.weatherSchedule as any).index || 0;
+    }
+    public getWeatherSchedule(): weatherKey[] {
+        return this.gameSettings.weatherSchedule;
+    }
+
+// In Game.ts loadState() method, modify order:
+public loadState(savedState: any, grid: Grid) {
+    console.log("Grid in loadState:", grid); // Add debug
+    // Load grid first
+    this.grid = grid;
+    
+    // Then settings
+    this.gameSettings = savedState.gameSettings;
+    this.gridSize = this.gameSettings.gridSize;
+    this.sunProbability = this.gameSettings.defaultSunProbability;
+    this.waterProbability = this.gameSettings.defaultWaterProbability;
+    this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
+
+    // Load state
+    this.playerPosition = { ...savedState.playerPosition };
+    this.numMaxedPlants = savedState.numMaxedPlants || 0;
+    this.undoable = savedState.undoable || [];
+    this.redoable = savedState.redoable || [];
+
+    // Weather after grid
+    this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
+    this.updateWeather();
+
+    // Visual updates last
+    this.createPlayer();
+    gameManager.setPlayer(this.player);
+    gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
+    this.repositionPlayer();
+}
+    
+    public initializeNewGame() {
+        this.setDefaultSettings();
+        this.initializeCellResources();
+        this.createPlayer();
+        this.numMaxedPlants = 0;  // Add this line
+        gameManager.setPlayer(this.player);
+        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
     }
 
     // Create the UI elements for the game scene
@@ -199,7 +236,7 @@ export class Game extends Scene {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
-            this.saveGame();
+            this.saveManager.saveGame();
             this.game.scene.start('Settings');
         });
 
@@ -232,24 +269,30 @@ export class Game extends Scene {
         }
     }
 
-    private createIterator(array: weatherKey[]): {next() : weatherKey | null, getNext(): weatherKey | null}{       // Returns null if nothing left to return
+    private createIterator(array: weatherKey[]): {next() : weatherKey | null, getNext(): weatherKey | null} {
         let index = 0;
+        const schedule = array;  // Keep reference to original schedule
+    
         return {
             next: function() {
-                if (index < array.length){
-                    const value = array[index];
+                // If we hit the end, reset index to start
+                if (index >= schedule.length) {
+                    index = 0;
+                }
+                // Return next weather if schedule exists
+                if (schedule.length > 0) {
+                    const value = schedule[index];
                     index += 1;
                     return value;
-                }else{
-                    return null;
                 }
+                return null;
             },
-            getNext: function(){
-                if (index < array.length){
-                    return array[index];
-                }else{
-                    return null;
+            getNext: function() {
+                if (schedule.length > 0) {
+                    // Use modulo to wrap around array
+                    return schedule[index % schedule.length];
                 }
+                return null;
             }
         }
     }
@@ -269,112 +312,6 @@ export class Game extends Scene {
             // Validate maxed plants count
             typeof state.numMaxedPlants === 'number'
         );
-    }
-    
-
-    // Save game to a specific slot or auto-save
-    private saveGame(slot?: string) {
-        const gameState: GameState = {
-            grid: this.serializeGrid(this.grid), // Serialize grid to ArrayBuffer
-            playerPosition: { ...this.playerPosition },
-            numMaxedPlants: this.numMaxedPlants,
-            undoable: JSON.parse(JSON.stringify(this.undoable)),
-            redoable: JSON.parse(JSON.stringify(this.redoable)),
-            gameSettings: { ...this.gameSettings }
-        };
-    
-        // Convert ArrayBuffer to Base64 string for storage
-        const serializedGrid = btoa(String.fromCharCode(...new Uint8Array(gameState.grid)));
-        const stateForStorage = {
-            ...gameState,
-            grid: serializedGrid
-        };
-    
-        const serializedState = JSON.stringify(stateForStorage);
-        
-        try {
-            if (!slot) {
-                localStorage.setItem(gameManager.getAutoSaveKey(), serializedState);
-            } else {
-                localStorage.setItem(this.saveSlotPrefix + slot, serializedState);
-                alert(`Game saved to ${slot}.`);
-            }
-        } catch (error) {
-            console.error('Error saving game state:', error);
-            alert('Failed to save game state.');
-        }
-    }
-
-    // Show save slots for manual save/load
-    private showSaveSlots() {
-        const action = prompt('Enter action (save/load) and slot number (1-5), e.g., "save 1" or "load 2":');
-        if (!action) return;
-
-        const [actionType, slotNumber] = action.toLowerCase().split(' ');
-        const slot = `slot${slotNumber}`;
-
-        if (actionType === 'save') {
-            this.saveGame(slot);
-        } else if (actionType === 'load') {
-            this.loadGame(slot);
-        }
-    }
-
-    // Load game from a specific slot
-    private loadGame(slot: string) {
-        const savedGame = localStorage.getItem(this.saveSlotPrefix + slot);
-        if (savedGame) {
-            this.loadGameState(JSON.parse(savedGame));
-        } else {
-            alert(`No save found in slot ${slot}.`);
-        }
-    }
-
-    // Load game state (for both auto-save and manual load)
-    private loadGameState(savedState: any) {
-        try {
-            // Convert Base64 string back to ArrayBuffer
-            const gridArray = new Uint8Array(atob(savedState.grid).split('').map(c => c.charCodeAt(0)));
-            const gridBuffer = gridArray.buffer;
-    
-            // Load game settings first
-            this.gameSettings = savedState.gameSettings;
-            
-            // Initialize game properties
-            this.gridSize = this.gameSettings.gridSize;
-            this.sunProbability = this.gameSettings.defaultSunProbability;
-            this.waterProbability = this.gameSettings.defaultWaterProbability;
-            this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
-    
-            // Deserialize grid
-            this.grid = this.deserializeGrid(gridBuffer);
-    
-            // Load other state
-            this.playerPosition = { ...savedState.playerPosition };
-            this.numMaxedPlants = savedState.numMaxedPlants || 0;
-            this.undoable = savedState.undoable || [];
-            this.redoable = savedState.redoable || [];
-    
-            this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
-            this.updateWeather();
-    
-            this.createPlayer();
-            
-            // Redraw the grid to reflect new resources
-            gameManager.setPlayer(this.player);
-            gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
-            this.repositionPlayer();
-    
-        } catch (error) {
-            console.error('Error loading game state:', error);
-            alert('Failed to load game state. Starting new game.');
-            this.setDefaultSettings();
-            this.initializeCellResources();
-            
-            // Redraw the grid to reflect new resources
-            gameManager.setPlayer(this.player);
-            gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
-        }
     }
 
     update() {
@@ -411,7 +348,7 @@ export class Game extends Scene {
         this.updateForecastUI();
         this.undoable.push(this.grid);
         this.redoable = [];
-        this.grid = JSON.parse(JSON.stringify(this.grid));         // Dereference this.grid from the object in undoable array
+        this.grid = JSON.parse(JSON.stringify(this.grid));       // Dereference this.grid from the object in undoable array
         // Update resources for each cell
         for (let row = 0; row < this.gridSize; row++) {
             for (let col = 0; col < this.gridSize; col++) {
@@ -450,17 +387,24 @@ export class Game extends Scene {
         gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
 
         // Auto-save after each turn
-        this.saveGame();
+        this.saveManager.saveGame();
     }
 
-    private updateWeather(){
+    private updateWeather() {
         const newWeather: weatherKey | null = this.weatherSchedule.next();
-        if (newWeather && newWeather != "DEFAULT"){
-            this.resourceModifier.sun = Weathers[newWeather].sun;
-            this.resourceModifier.water = Weathers[newWeather].water;
-        }else{
-            this.resourceModifier.sun = 1;
-            this.resourceModifier.water = 1;
+        
+        // Explicitly check for valid weather key
+        if (newWeather && Weathers[newWeather]) {
+            this.resourceModifier = {
+                sun: Weathers[newWeather].sun,
+                water: Weathers[newWeather].water
+            };
+        } else {
+            // Default values if weather is invalid
+            this.resourceModifier = {
+                sun: 1,
+                water: 1
+            };
         }
     }
 
@@ -528,7 +472,7 @@ export class Game extends Scene {
     // Method to handle plant interaction
     private handlePlantInteraction(cell: Coordinate) {
         this.plantsManager.handlePlantInteraction(cell, this.grid);
-        this.saveGame();
+        this.saveManager.saveGame();
 
         // Redraw the grid to reflect plant changes
         //this.drawGrid();
@@ -563,155 +507,6 @@ export class Game extends Scene {
             }
         }
     }
-
-    // Convert Grid to/from Byte Array for memory
-    private serializeGrid(grid: Grid): ArrayBuffer {
-        const growthConditionSize = 3; // Each GrowthCondition is 3 bytes (water, sun, neighbors)
-        /*
-        growthLevel, maxGrowthLevel, flag for plant
-        */
-        const plantFixedSize = 2 + 2 + this.MAX_SPECIES_LENGTH + growthConditionSize * this.MAX_GROWTH_CONDITIONS;
-        const cellSize = 2 + 1 + plantFixedSize; // 2 bytes (sun, water), 1 byte (plant flag), plant data
-    
-        // Calculate total buffer size
-        const gridSize = grid.length * grid[0].length;
-        const bufferSize = gridSize * cellSize;
-        const buffer = new ArrayBuffer(bufferSize);
-        const view = new DataView(buffer);
-    
-        let byteOffset = 0;
-    
-        // Serialize each cell in the grid
-        for (const row of grid) {
-            for (const cell of row) {
-                // Serialize sun
-                view.setUint8(byteOffset, cell.sun);
-                byteOffset += 1;
-    
-                // Serialize water
-                view.setUint8(byteOffset, cell.water);
-                byteOffset += 1;
-    
-                // Serialize plant presence flag (1 = Plant exists, 0 = null)
-                if (cell.plant) {
-                    view.setUint8(byteOffset, 1); // Flag
-                    byteOffset += 1;
-    
-                    // Serialize Plant
-                    const { species, growthLevel, maxGrowthLevel, growthConditions } = cell.plant;
-    
-                    // Write species
-                    for (let i = 0; i < this.MAX_SPECIES_LENGTH; i++) {
-                        if (i < species.length) {
-                            view.setUint8(byteOffset + i, species.charCodeAt(i));
-                        } else {
-                            view.setUint8(byteOffset + i, 0); // Padding
-                        }
-                    }
-                    byteOffset += this.MAX_SPECIES_LENGTH;
-    
-                    // Write growthLevel and maxGrowthLevel
-                    view.setUint8(byteOffset, growthLevel);
-                    byteOffset += 1;
-                    view.setUint8(byteOffset, maxGrowthLevel);
-                    byteOffset += 1;
-    
-                    // Write growthConditions
-                    for (let i = 0; i < maxGrowthLevel; i++) {
-                        if (i < growthConditions.length) {
-                            const condition = growthConditions[i];
-                            view.setInt8(byteOffset, condition.requiredSun);
-                            view.setInt8(byteOffset + 1, condition.requiredWater);
-                            view.setInt8(byteOffset + 2, condition.requiredNeighbors);
-                            byteOffset += 3;
-                        } else {
-                            // Padding empty growthCondition slots
-                            view.setUint8(byteOffset, 0);
-                            view.setUint8(byteOffset + 1, 0);
-                            view.setUint8(byteOffset + 2, 0);
-                            byteOffset += 3;
-                        }
-                    }
-                } else {
-                    // No plant; write plant flag as 0 and skip plant data
-                    view.setUint8(byteOffset, 0);
-                    byteOffset += 1;
-    
-                    // Skip space allocated for a Plant object
-                    byteOffset += plantFixedSize;
-                }
-            }
-        }
-    
-        return buffer;
-    }
-    private deserializeGrid(buffer: ArrayBuffer): Grid {
-        const view = new DataView(buffer);
-        const growthConditionSize = 3;
-        const plantFixedSize = 2 + 2 + this.MAX_SPECIES_LENGTH + growthConditionSize * this.MAX_GROWTH_CONDITIONS;
-    
-        let byteOffset = 0;
-        const grid: Grid = [];
-    
-        for (let r = 0; r < this.gridSize; r++) {
-            const row: CellResource[] = [];
-    
-            for (let c = 0; c < this.gridSize; c++) {
-                // Deserialize sun and water
-                const sun = view.getUint8(byteOffset);
-                byteOffset += 1;
-    
-                const water = view.getUint8(byteOffset);
-                byteOffset += 1;
-    
-                // Deserialize plant flag
-                const hasPlant = view.getUint8(byteOffset) === 1;
-                byteOffset += 1;
-    
-                let plant: Plant | null = null;
-                if (hasPlant) {
-                    // Deserialize Plant
-                    let species = "";
-                    for (let i = 0; i < this.MAX_SPECIES_LENGTH; i++) {
-                        const charCode = view.getUint8(byteOffset + i);
-                        if (charCode !== 0) {
-                            species += String.fromCharCode(charCode);
-                        }
-                    }
-                    byteOffset += this.MAX_SPECIES_LENGTH;
-    
-                    const growthLevel = view.getUint8(byteOffset);
-                    byteOffset += 1;
-    
-                    const maxGrowthLevel = view.getUint8(byteOffset);
-                    byteOffset += 1;
-    
-                    const growthConditions: GrowthCondition[] = [];
-                    for (let i = 0; i < maxGrowthLevel; i++) {
-                        const requiredSun = view.getInt8(byteOffset);
-                        const requiredWater = view.getInt8(byteOffset+1);
-                        const requiredNeighbors = view.getInt8(byteOffset+2);
-                        byteOffset += 3;
-    
-                        growthConditions.push({
-                            requiredWater,
-                            requiredSun,
-                            requiredNeighbors,
-                        });
-                    }
-    
-                    plant = { species, growthLevel, maxGrowthLevel, growthConditions };
-                } else {
-                    byteOffset += plantFixedSize; // Skip plant data
-                }
-                const nextCell: CellResource = { sun, water, plant }
-                row.push(nextCell);
-            }
-            grid.push(row);
-        }
-    
-        return grid;
-    }
 }
 
 // Interface for game state
@@ -722,6 +517,7 @@ interface GameState {
     undoable: (Grid | Coordinate)[];
     redoable: (Grid | Coordinate)[];
     gameSettings: Settings;
+    weatherIndex: number;
 }
 
 // Interface to define cell resource structure
@@ -743,8 +539,10 @@ interface Settings {
     defaultWaterProbability: number
     weatherSchedule: weatherKey[]
 }
+
 // Enum to define types of weather
-type weatherKey = keyof typeof Weathers
+type weatherKey = keyof typeof Weathers;
+
 const Weathers = Object.freeze({
     SUNNY : {
         sun: 2,

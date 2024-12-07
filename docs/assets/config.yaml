@@ -13,6 +13,6 @@ defaultWaterProbability: 0.4
 # CLOUDY : half chances of sun
 weatherSchedule:
   - RAINY
-  - RAINY
-  - RAINY
-  - RAINY
+  - NORMAL
+  - SUNNY
+  - NORMAL
