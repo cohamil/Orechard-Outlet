@@ -660,7 +660,7 @@ private loadGameState(savedState: GameState) {
                     
                     // Create a popup window for plant information
                     const plantPopup = new PopupWindow(this, this.cameras.main.width / 2, this.cameras.main.height / 2, 700, 500, 'Plant Info', 
-                        `Species: ${plant.species}\nMax Growth Level: ${plant.maxGrowthLevel}\nGrowth Level: ${plant.growthLevel}\n\n${growthRequirementString}`, {
+                        `Species: ${SpeciesName[plant.species as keyof typeof SpeciesName]}\nMax Growth Level: ${plant.maxGrowthLevel}\nGrowth Level: ${plant.growthLevel}\n\n${growthRequirementString}`, {
                         fontFamily: 'Arial Black', fontSize: 24, color: '#ffffff',
                         stroke: '#000000', strokeThickness: 6
                     });
@@ -671,7 +671,7 @@ private loadGameState(savedState: GameState) {
                         .setOrigin(0)
                         .setAlpha(0.001)
                         .setInteractive()
-                        .on('pointerdown', () => plantPopup.setVisibility(true));
+                        .on('pointerup', () => plantPopup.setVisibility(true));
                 }
             }
         }
@@ -1087,3 +1087,10 @@ const Weathers = Object.freeze({
         water: 1
     }
 })
+
+// Enum to display Plant Names
+enum SpeciesName {
+    "0xDA70D6" = "Lilac",
+    "0x4CBB17" = "Daisy",
+    "0xF28C28" = "Tulip"
+}
