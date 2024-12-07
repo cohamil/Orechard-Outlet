@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { TextButton } from '../text-button';
+import { gameManager } from '../GameManager';
 
 export class GameOver extends Scene
 {
@@ -30,6 +31,9 @@ export class GameOver extends Scene
         const backButton = new TextButton(this, 250, 600, 'Back', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
-        }, () => this.scene.start('MainMenu'));
+        }, () => {
+            localStorage.removeItem(gameManager.getAutoSaveKey());
+            this.scene.start('MainMenu');
+        });
     }
 }
