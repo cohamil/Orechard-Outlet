@@ -1,9 +1,10 @@
 import { Scene } from 'phaser';
 
 import { TextButton } from '../text-button';
-import { PopupWindow } from '../popup-window';
+//import { PopupWindow } from '../popup-window';
 import { parse } from 'yaml';
 import { gameManager } from '../GameManager';
+import { PlantsManager, Plant, GrowthCondition } from '../PlantsManager';
 
 export class Game extends Scene {
     private gridSize: number; // Number of rows and columns
@@ -26,7 +27,6 @@ export class Game extends Scene {
     private waterProbability: number;
 
     // Constants
-    private plantSpecies: Plant[] = [];
     private MAXED_PLANTS_WIN_CONDITION: number;
     private MAX_SPECIES_LENGTH = 8;
     private MAX_GROWTH_CONDITIONS = 5;
@@ -48,6 +48,9 @@ export class Game extends Scene {
             requiredNeighbors: 0
         },
     ]
+
+    // Add PlantsManager here
+    private plantsManager!: PlantsManager;
 
     // Save-related properties
     private currentSaveSlot: string | null = null;
@@ -74,6 +77,14 @@ export class Game extends Scene {
 
     create() {
         this.cameras.main.setBackgroundColor(0x87ceeb);
+
+        // Initialize PlantsManager
+        this.plantsManager = new PlantsManager(this.MAX_SPECIES_LENGTH, this);
+
+        // Create initial plant species using plantsManager
+        this.plantsManager.createSpecies("0xDA70D6", this.defaultGrowthConditions);
+        this.plantsManager.createSpecies("0x4CBB17", this.defaultGrowthConditions);
+        this.plantsManager.createSpecies("0xF28C28", this.defaultGrowthConditions);
     
         let autoSaveLoaded = false;
 
@@ -97,7 +108,7 @@ export class Game extends Scene {
             this.createPlayer();
             this.movePlayerTo({row: 0, col: 0});
         }
-    
+
         // Only load YAML settings if no save was loaded
         if (!autoSaveLoaded) {
             if (this.cache.text.has('yamlData')) {
@@ -128,17 +139,11 @@ export class Game extends Scene {
             this.updateWeather();
 
             this.createPlayer();
-    
-            // Initialize grid
+
+            // Draw grid with initial resources
             this.initializeCellResources();
             this.drawGrid();
         }
-    
-        // Create base Plants regardless of load state
-        this.plantSpecies = []; // Reset plant species
-        this.createSpecies('0xDA70D6', this.defaultGrowthConditions);
-        this.createSpecies('0x4CBB17', this.defaultGrowthConditions);
-        this.createSpecies('0xF28C28', this.defaultGrowthConditions);
     
         // Set up keyboard input
         if (!this.input.keyboard) {
@@ -239,28 +244,6 @@ export class Game extends Scene {
                 }
             }
         }
-    }
-
-    // Create a new plant species
-    private createSpecies(species: string, conditions: GrowthCondition[]){
-        // make the object based on parameters and add to plantSpecies array
-        // TBD: add location of spritesheet to use
-        if (species.length != this.MAX_SPECIES_LENGTH){
-            console.error("Incorrect Species format. Not creating plant.\nGiven Species: " + species);
-            return;
-        }
-        if (conditions.length > this.MAX_GROWTH_CONDITIONS){
-            console.error("Too many Growth Conditions. Not creating plant.\nGiven Species: " + species + 
-                "\n# Conditions: "+conditions.length);
-            return;
-        }
-        const newPlant: Plant = {
-            species: species,
-            growthLevel: 0,
-            maxGrowthLevel: 3,
-            growthConditions: conditions
-        }
-        this.plantSpecies.push(newPlant);
     }
 
     // Check for auto-save when game starts
@@ -409,7 +392,6 @@ export class Game extends Scene {
             this.drawGrid();
         }
     }
-    
 
     update() {
         // Handle player movement
@@ -453,7 +435,7 @@ export class Game extends Scene {
 
                 // Plant growth mechanics
                 if (currentCell.plant) {
-                    this.updatePlantGrowth({row: row, col: col});
+                    this.numMaxedPlants = this.plantsManager.updatePlantGrowth({row: row, col: col}, this.numMaxedPlants, this.grid);
                 }
 
                 // Check for the win condition
@@ -496,49 +478,7 @@ export class Game extends Scene {
         }
     }
 
-    // Update plant growth based on resources
-    private updatePlantGrowth(cell: Coordinate) {
-        const cellResource = this.grid[cell.row][cell.col];
-        const plant = cellResource.plant;
-
-        if (!plant || plant.growthLevel === plant.maxGrowthLevel) return;
-        const condition = plant.growthConditions[plant.growthLevel]
-        if (cellResource.water >= condition.requiredWater && cellResource.sun >= condition.requiredSun){
-            if (condition.requiredNeighbors == -1 || condition.requiredNeighbors == this.checkAdjacentFlowers(cell)){      // Plant does not care for number of neighbors
-                plant.growthLevel += 1;
-                if (plant.growthLevel == plant.maxGrowthLevel){
-                    this.numMaxedPlants += 1;
-                    console.log(`1 more plant maxed! \nHave ${this.numMaxedPlants}\nNeed ${this.MAXED_PLANTS_WIN_CONDITION}`)
-                }
-                cellResource.water -= 1;
-            }
-        }
-    }
-
-    // Check for adjacent flowers to prevent growth
-    private checkAdjacentFlowers(center: Coordinate): number {
-        const adjacentCells = [
-            { row: center.row - 1, col: center.col }, // Up
-            { row: center.row + 1, col: center.col }, // Down
-            { row: center.row, col: center.col - 1 }, // Left
-            { row: center.row, col: center.col + 1 }, // Right
-        ];
-        let numAdjacentPlants = 0;
-
-        for (const cell of adjacentCells) {
-            if (cell.row >= 0 && cell.row < this.gridSize &&
-                cell.col >= 0 && cell.col < this.gridSize) {
-                const adjacentPlant = this.grid[cell.row][cell.col].plant;
-                if (adjacentPlant) numAdjacentPlants+=1;
-            }
-        }
-
-        return numAdjacentPlants;
-    }
-
     private drawGrid() {
-        //console.log('Drawing grid - full grid state:', JSON.stringify(this.grid, null, 2));
-    
         const startX = (this.cameras.main.width - this.gridSize * this.cellSize) / 2;
         const startY = (this.cameras.main.height - this.gridSize * this.cellSize) / 2;
     
@@ -546,6 +486,8 @@ export class Game extends Scene {
         this.children.list
             .filter(child => child !== this.player && !Object.values(this.UIElements).includes(child as any))
             .forEach(child => child.destroy());
+
+        let cellColor = 0xcccccc; // Default gray
     
         for (let row = 0; row < this.gridSize; row++) {
             for (let col = 0; col < this.gridSize; col++) {
@@ -554,12 +496,10 @@ export class Game extends Scene {
     
                 // Get cell resources
                 const cellResource = this.grid[row][col];
-                //console.log(`Rendering cell (${row}, ${col}):`, cellResource);
     
                 // Determine cell color based on resources
-                let cellColor = 0xcccccc; // Default gray
+                cellColor = 0xcccccc; // Default gray
                 if (cellResource.sun && cellResource.water) {
-                    //console.log('Cell has both sun and water');
                     // If both sun and water, create a diagonal split cell
                     const sunPath = this.add
                         .polygon(x, y, [
@@ -595,51 +535,10 @@ export class Game extends Scene {
                         .setOrigin(0)
                         .setStrokeStyle(1, 0x000000);
                 }
-    
-                // Draw plant if present
-                if (cellResource.plant) {
-                    const plant = cellResource.plant;
-                    //console.log(`Plant in cell (${row}, ${col}):`, plant);
-                    
-                    const plantColor = plant.species;
-                    const plantSize = (this.cellSize * 0.4) * ((1+plant.growthLevel) / plant.maxGrowthLevel);
-                    const plantX = x + (this.cellSize - plantSize) / 2;
-                    const plantY = y + (this.cellSize - plantSize) / 2;
-    
-                    // Draw the plant
-                    this.add
-                        .rectangle(plantX, plantY, plantSize, plantSize, parseInt(plantColor))
-                        .setOrigin(0)
-                        .setStrokeStyle(1, 0x000000);
-
-                    // Format growth requirements for display
-                    let growthRequirementString;
-                    if (plant.growthLevel === plant.maxGrowthLevel) {
-                        growthRequirementString = 'Plant is Fully Grown!';
-                    }
-                    else {
-                        const condition = plant.growthConditions[plant.growthLevel];
-                        const neighborsString = condition.requiredNeighbors === -1 ? 'Any' : condition.requiredNeighbors;
-                        growthRequirementString = `Growth Requirements For Level Up:\nWater Level: ${condition.requiredWater}\nSun Level: ${condition.requiredSun}\nNumber of Neighbors: ${neighborsString}`;
-                    }
-                    
-                    // Create a popup window for plant information
-                    const plantPopup = new PopupWindow(this, this.cameras.main.width / 2, this.cameras.main.height / 2, 700, 500, 'Plant Info', 
-                        `Species: ${SpeciesName[plant.species as keyof typeof SpeciesName]}\nMax Growth Level: ${plant.maxGrowthLevel}\nGrowth Level: ${plant.growthLevel}\n\n${growthRequirementString}`, {
-                        fontFamily: 'Arial Black', fontSize: 24, color: '#ffffff',
-                        stroke: '#000000', strokeThickness: 6
-                    });
-                    plantPopup.setVisibility(false);
-
-                    // Make the cell interactive
-                    this.add.rectangle(x, y, this.cellSize - 2, this.cellSize - 2, cellColor)
-                        .setOrigin(0)
-                        .setAlpha(0.001)
-                        .setInteractive()
-                        .on('pointerup', () => plantPopup.setVisibility(true));
-                }
             }
         }
+
+        this.plantsManager.drawPlants(this.cellSize, startX, startY, cellColor, this.grid);
     
         // Reposition the player after redrawing grid
         this.repositionPlayer();
@@ -776,45 +675,11 @@ export class Game extends Scene {
 
     // Method to handle plant interaction
     private handlePlantInteraction(cell: Coordinate) {
-        const cellResource = this.grid[cell.row][cell.col];
-        
-        // Plant a new plant if the cell is empty
-        if (!cellResource.plant) {
-            this.sowPlant(cell);
-        } 
-        // Harvest the plant if the cell has a plant
-        else {
-            this.harvestPlant(cell);
-        }
+        this.plantsManager.handlePlantInteraction(cell, this.grid);
 
         // Redraw the grid to reflect plant changes
         this.drawGrid();
     }
-
-    // Method to plant a new plant in a cell
-    private sowPlant(cell: Coordinate) {
-        const cellResource = this.grid[cell.row][cell.col];
-
-        // Randomly select a plant species
-        if (this.plantSpecies.length === 0){
-            console.error("No available plants to sow!");
-            return;
-        }
-        const plantSpeciesIndex = Math.floor(Math.random() * this.plantSpecies.length);
-        const newPlant: Plant = {...this.plantSpecies[plantSpeciesIndex]};
-        cellResource.plant = newPlant;
-
-        ////console.log(`New plant sown: ${newPlantSpecies}`);
-    }
-
-    // Method to harvest a plant from a cell
-    private harvestPlant(cell: Coordinate) {
-        const cellResource = this.grid[cell.row][cell.col];
-
-        // Harvest the plant and remove it from the cell
-        cellResource.plant = null;
-    }
-
 
     // Handle UNDO and REDO operations
     private undo(){
@@ -1005,25 +870,13 @@ interface GameState {
 }
 
 // Interface to define cell resource structure
-interface CellResource {
+export interface CellResource {
     sun: number;
     water: number; // 0-3 water levels
     plant: Plant | null; // Plant object or null if no plant
 }
-type Grid = CellResource[][];
-// Interface to define plant structure
-interface Plant {
-    species: string;
-    growthLevel: number;
-    maxGrowthLevel: number;
-    growthConditions: GrowthCondition[];
-}
-interface GrowthCondition {
-    requiredSun: number;
-    requiredWater: number;
-    requiredNeighbors: number;
-}
-interface Coordinate {
+export type Grid = CellResource[][];
+export interface Coordinate {
     row: number;
     col: number;
 }
@@ -1055,10 +908,3 @@ const Weathers = Object.freeze({
         water: 1
     }
 })
-
-// Enum to display Plant Names
-enum SpeciesName {
-    "0xDA70D6" = "Lilac",
-    "0x4CBB17" = "Daisy",
-    "0xF28C28" = "Tulip"
-}

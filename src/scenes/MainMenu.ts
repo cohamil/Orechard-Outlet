@@ -59,6 +59,10 @@ export class MainMenu extends Scene
                 autoSavePopup.add(yesButton);
                 autoSavePopup.add(noButton);
             }
+            else {
+                gameManager.setPlaying(true);
+                this.scene.start('Game');
+            }
         });
 
         const tutorialButton = new TextButton(this, 250, 460, 'Tutorial', {
