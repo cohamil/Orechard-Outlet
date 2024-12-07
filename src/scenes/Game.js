@@ -38,7 +38,7 @@ export class Game extends Scene {
     }
 
     preload() {
-        this.load.text('yamlData', '/assets/config.yaml');
+        this.load.text('yamlData', 'assets/config.yaml');
     }
 
     create() {
