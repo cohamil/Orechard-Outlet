@@ -296,20 +296,8 @@ export class Game extends Scene {
     private isValidGameState(state: any): state is GameState {
         return (
             state &&
-            // Validate grid structure
-            Array.isArray(state.grid) &&
-            state.grid.every((row: any) => 
-                Array.isArray(row) &&
-                row.every((cell: any) => 
-                    cell &&
-                    typeof cell.sun === 'number' &&
-                    typeof cell.water === 'number' &&
-                    (cell.plant === null || 
-                        (typeof cell.plant === 'object' && 
-                         typeof cell.plant.species === 'string' && 
-                         typeof cell.plant.growthLevel === 'number'))
-                )
-            ) &&
+            // Validate grid is a Base64 string
+            typeof state.grid === 'string' &&
             // Validate player position
             state.playerPosition &&
             typeof state.playerPosition.row === 'number' &&
@@ -325,28 +313,23 @@ export class Game extends Scene {
 
     // Save game to a specific slot or auto-save
     private saveGame(slot?: string) {
-        // Create a clean copy of the grid state
         const gameState: GameState = {
-            grid: this.grid.map(row => 
-                row.map(cell => ({
-                    sun: cell.sun,
-                    water: cell.water,
-                    plant: cell.plant ? {
-                        species: cell.plant.species,
-                        growthLevel: cell.plant.growthLevel,
-                        maxGrowthLevel: cell.plant.maxGrowthLevel,
-                        growthConditions: JSON.parse(JSON.stringify(cell.plant.growthConditions))
-                    } : null
-                }))
-            ),
+            grid: this.serializeGrid(this.grid), // Serialize grid to ArrayBuffer
             playerPosition: { ...this.playerPosition },
             numMaxedPlants: this.numMaxedPlants,
             undoable: JSON.parse(JSON.stringify(this.undoable)),
             redoable: JSON.parse(JSON.stringify(this.redoable)),
-            gameSettings: { ...this.gameSettings }  // Save full settings
+            gameSettings: { ...this.gameSettings }
         };
     
-        const serializedState = JSON.stringify(gameState);
+        // Convert ArrayBuffer to Base64 string for storage
+        const serializedGrid = btoa(String.fromCharCode(...new Uint8Array(gameState.grid)));
+        const stateForStorage = {
+            ...gameState,
+            grid: serializedGrid
+        };
+    
+        const serializedState = JSON.stringify(stateForStorage);
         
         try {
             if (!slot) {
@@ -387,63 +370,45 @@ export class Game extends Scene {
     }
 
     // Load game state (for both auto-save and manual load)
-private loadGameState(savedState: GameState) {
-    try {
-        console.log('Loading state:', savedState); // Debug log
-
-        // Load game settings first
-        this.gameSettings = savedState.gameSettings;
-        
-        // Initialize game properties from settings
-        this.gridSize = this.gameSettings.gridSize;
-        this.sunProbability = this.gameSettings.defaultSunProbability;
-        this.waterProbability = this.gameSettings.defaultWaterProbability;
-        this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
-
-        // Reinitialize weather schedule
-        this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
-        this.updateWeather();
-
-        // Validate and load grid
-        if (!savedState.grid || !Array.isArray(savedState.grid)) {
-            throw new Error('Invalid grid data in saved state');
+    private loadGameState(savedState: any) {
+        try {
+            // Convert Base64 string back to ArrayBuffer
+            const gridArray = new Uint8Array(atob(savedState.grid).split('').map(c => c.charCodeAt(0)));
+            const gridBuffer = gridArray.buffer;
+    
+            // Load game settings first
+            this.gameSettings = savedState.gameSettings;
+            
+            // Initialize game properties
+            this.gridSize = this.gameSettings.gridSize;
+            this.sunProbability = this.gameSettings.defaultSunProbability;
+            this.waterProbability = this.gameSettings.defaultWaterProbability;
+            this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
+    
+            // Deserialize grid
+            this.grid = this.deserializeGrid(gridBuffer);
+    
+            // Load other state
+            this.playerPosition = { ...savedState.playerPosition };
+            this.numMaxedPlants = savedState.numMaxedPlants || 0;
+            this.undoable = savedState.undoable || [];
+            this.redoable = savedState.redoable || [];
+    
+            this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
+            this.updateWeather();
+    
+            this.createPlayer();
+            this.drawGrid();
+            this.repositionPlayer();
+    
+        } catch (error) {
+            console.error('Error loading game state:', error);
+            alert('Failed to load game state. Starting new game.');
+            this.setDefaultSettings();
+            this.initializeCellResources();
+            this.drawGrid();
         }
-
-        // Deep copy grid with explicit type checking
-        this.grid = savedState.grid.map(row => 
-            row.map(cell => ({
-                sun: Number(cell.sun),
-                water: Number(cell.water),
-                plant: cell.plant ? {
-                    species: String(cell.plant.species),
-                    growthLevel: Number(cell.plant.growthLevel),
-                    maxGrowthLevel: Number(cell.plant.maxGrowthLevel),
-                    growthConditions: cell.plant.growthConditions
-                } : null
-            }))
-        );
-
-        // Load other state
-        this.playerPosition = { ...savedState.playerPosition };
-        this.numMaxedPlants = savedState.numMaxedPlants || 0;
-        this.undoable = savedState.undoable || [];
-        this.redoable = savedState.redoable || [];
-
-        this.createPlayer();
-
-        // Update display
-        this.drawGrid();
-        this.repositionPlayer();
-
-        console.log('Loaded grid:', this.grid); // Debug log
-    } catch (error) {
-        console.error('Error loading game state:', error);
-        alert('Failed to load game state. Starting new game.');
-        this.setDefaultSettings();
-        this.initializeCellResources();
-        this.drawGrid();
     }
-}
     
 
     update() {
@@ -1028,12 +993,12 @@ private loadGameState(savedState: GameState) {
 
 // Interface for game state
 interface GameState {
-    grid: Grid;
+    grid: ArrayBuffer;  // Changed from Grid to ArrayBuffer
     playerPosition: Coordinate;
     numMaxedPlants: number;
     undoable: (Grid | Coordinate)[];
     redoable: (Grid | Coordinate)[];
-    gameSettings: Settings;  // Add full game settings
+    gameSettings: Settings;
 }
 
 // Interface to define cell resource structure
