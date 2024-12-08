@@ -6,6 +6,7 @@ import { gameManager } from '../GameManager';
 import { PlantsManager } from '../PlantsManager';
 import { PlayerActions } from '../PlayerActions';
 import { SaveManager } from '../SaveManager';
+import i18n from '../i18n';
 
 export class Game extends Scene {
     constructor() {
@@ -61,7 +62,7 @@ export class Game extends Scene {
                 this.gridSize = this.gameSettings.gridSize;
                 this.sunProbability = this.gameSettings.defaultSunProbability;
                 this.waterProbability = this.gameSettings.defaultWaterProbability;
-                this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
+                gameManager.setPlantsWinCon(this.gameSettings.plantsToMax);
             } catch (error) {
                 console.error('Error parsing YAML file. Using defaults.');
                 this.setDefaultSettings();
@@ -157,7 +158,7 @@ export class Game extends Scene {
         this.gridSize = this.gameSettings.gridSize;
         this.sunProbability = this.gameSettings.defaultSunProbability;
         this.waterProbability = this.gameSettings.defaultWaterProbability;
-        this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
+        gameManager.setPlantsWinCon(this.gameSettings.plantsToMax);
 
         // Load state
         this.playerPosition = { ...savedState.playerPosition };
@@ -185,16 +186,19 @@ export class Game extends Scene {
     }
 
     // Create the UI elements for the game scene
+    // Create the UI elements for the game scene
+    // Create the UI elements for the game scene
     createUIElements() {
         // Create forecast text
-        const forecastText = this.weatherSchedule.getNext() || 'NORMAL';
-        this.UIElements.forecastText = this.add.text(Number(this.game.config.width) / 2 - 200, 0, 'Forecast: ' + forecastText, {
+        const forecast = this.weatherSchedule.getNext();
+        const forecastText = forecast ? i18n.t(forecast.toLowerCase()) : i18n.t('normal');
+        this.UIElements.forecastText = this.add.text(Number(this.game.config.width) / 2 - 200, 0, i18n.t('forecast') + ': ' + forecastText, {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         });
 
         // Create Settings button
-        this.UIElements.settingsButton = new TextButton(this, 0, 0, 'Settings', {
+        this.UIElements.settingsButton = new TextButton(this, 0, 0, i18n.t('settings'), {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
@@ -203,7 +207,7 @@ export class Game extends Scene {
         });
 
         // Create tutorial button
-        this.UIElements.tutorialButton = new TextButton(this, 0, 70, 'Tutorial', {
+        this.UIElements.tutorialButton = new TextButton(this, 0, 70, i18n.t('tutorial'), {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
@@ -216,8 +220,9 @@ export class Game extends Scene {
     // Update the forecast UI
     updateForecastUI() {
         if (this.UIElements.forecastText) {
-            const forecastText = this.weatherSchedule.getNext() || 'NORMAL';
-            this.UIElements.forecastText.setText('Forecast: ' + forecastText);
+            const forecast = this.weatherSchedule.getNext();
+            const forecastText = forecast ? i18n.t(forecast.toLowerCase()) : i18n.t('normal');
+            this.UIElements.forecastText.setText(i18n.t('forecast') + ': ' + forecastText);
         }
     }
 
@@ -320,7 +325,7 @@ export class Game extends Scene {
                     this.numMaxedPlants = this.plantsManager.updatePlantGrowth({ row: row, col: col }, this.numMaxedPlants, this.grid);
                 }
                 // Check for the win condition
-                if (this.numMaxedPlants === this.MAXED_PLANTS_WIN_CONDITION) {
+                if (this.numMaxedPlants === gameManager.getPlantsWinCon()) {
                     this.scene.start('GameOver');
                     this.playerPosition = { row: 0, col: 0 };
                     return;

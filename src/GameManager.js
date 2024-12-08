@@ -4,6 +4,7 @@ class GameManager extends Phaser.Data.DataManager {
     constructor() {
         super(new Phaser.Events.EventEmitter());
         this.isPlaying = false;
+        this.MAXED_PLANTS_WIN_CONDITION = 5;
         this.autoSaveKey = 'game_autosave';
         this.confirmLoad = null;
         this.player = null;
@@ -20,6 +21,14 @@ class GameManager extends Phaser.Data.DataManager {
 
     getPlaying() {
         return this.isPlaying;
+    }
+
+    setPlantsWinCon(value) {
+        this.MAXED_PLANTS_WIN_CONDITION = value;
+    }
+
+    getPlantsWinCon() {
+        return this.MAXED_PLANTS_WIN_CONDITION;
     }
 
     setConfirmLoad(value) {

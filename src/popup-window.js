@@ -1,4 +1,5 @@
 import { TextButton } from './text-button';
+import i18n from './i18n';
 
 export class PopupWindow extends Phaser.GameObjects.Container {
     constructor(scene, x, y, width, height, title, content, style) {
@@ -16,7 +17,7 @@ export class PopupWindow extends Phaser.GameObjects.Container {
         this.add(this.contentText);
         
         // Close Button for the popup
-        const closeButton = new TextButton(scene, -50, height / 2 - 50, 'Close', {
+        const closeButton = new TextButton(scene, -50, height / 2 - 50, i18n.t('close'), {
             fontFamily: 'Arial Black',
             fontSize: 28,
             color: '#ffffff',

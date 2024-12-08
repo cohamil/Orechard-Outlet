@@ -1,4 +1,5 @@
 import { PopupWindow } from './popup-window';
+import i18n from './i18n'; // Import i18next
 
 // This manager handles all plant-related operations
 export class PlantsManager {
@@ -93,11 +94,11 @@ export class PlantsManager {
                     // Plant interactivity: Add a popup window
                     let growthRequirementString;
                     if (plant.growthLevel === plant.maxGrowthLevel) {
-                        growthRequirementString = "Plant is Fully Grown!";
+                        growthRequirementString = i18n.t('plant_fully_grown');
                     } else {
                         const condition = plant.growthConditions[plant.growthLevel];
-                        const neighborsString = condition.requiredNeighbors === -1 ? "Any" : condition.requiredNeighbors;
-                        growthRequirementString = `Growth Requirements For Level Up:\nWater Level: ${condition.requiredWater}\nSun Level: ${condition.requiredSun}\nNumber of Neighbors: ${neighborsString}`;
+                        const neighborsString = condition.requiredNeighbors === -1 ? i18n.t('any') : condition.requiredNeighbors;
+                        growthRequirementString = `${i18n.t('growth_requirements')}:\n${i18n.t('water_level')}: ${condition.requiredWater}\n${i18n.t('sun_level')}: ${condition.requiredSun}\n${i18n.t('number_of_neighbors')}: ${neighborsString}`;
                     }
                     const plantPopup = new PopupWindow(
                         this.scene,
@@ -105,8 +106,8 @@ export class PlantsManager {
                         this.scene.cameras.main.height / 2,
                         700,
                         500,
-                        "Plant Info",
-                        `Species: ${SpeciesName[plant.species]}\nMax Growth Level: ${plant.maxGrowthLevel}\nGrowth Level: ${plant.growthLevel}\n\n${growthRequirementString}`,
+                        i18n.t('plant_info'),
+                        `${i18n.t('species')}: ${i18n.t('species_' + SpeciesName[plant.species])}\n${i18n.t('max_growth_level')}: ${plant.maxGrowthLevel}\n${i18n.t('growth_level')}: ${plant.growthLevel}\n\n${growthRequirementString}`,
                         {
                             fontFamily: "Arial Black",
                             fontSize: 24,
@@ -153,7 +154,7 @@ export class PlantsManager {
 
 // Plant species names
 export const SpeciesName = {
-    "0xDA70D6": "Lilac",
-    "0x4CBB17": "Daisy",
-    "0xF28C28": "Tulip",
+    "0xDA70D6": "lilac",
+    "0x4CBB17": "daisy",
+    "0xF28C28": "tulip",
 }

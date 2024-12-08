@@ -20,6 +20,9 @@
     "homepage": "https://github.com/phaserjs/template-esbuild-ts#readme",
     "license": "MIT",
     "dependencies": {
+        "i18next": "^24.0.5",
+        "i18next-browser-languagedetector": "^8.0.1",
+        "i18next-http-backend": "^3.0.1",
         "phaser": "^3.87.0",
         "yaml": "^2.6.1"
     },
