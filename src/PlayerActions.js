@@ -11,7 +11,7 @@ export class PlayerActions {
     }
 
     // Handle player movement
-    checkForPlayerMovement(gridSize, playerPosition, undoable) {
+    checkForPlayerMovement(gridSize, playerPosition) {
         if (!this.cursors || !this.scene.input.keyboard) {
             console.warn('Keyboard input or cursors are not available.');
             return;
@@ -21,29 +21,25 @@ export class PlayerActions {
         // WASD Keys for Movement
         if (Phaser.Input.Keyboard.JustDown(this.scene.input.keyboard.keys[65])) { // A
             if (col > 0) { 
-                undoable.push(playerPosition);
                 return { row: row, col: col - 1 }; // Move left
             }
         } else if (Phaser.Input.Keyboard.JustDown(this.scene.input.keyboard.keys[68])) { // D
             if (col < gridSize - 1) {
-                undoable.push(playerPosition);
                 return { row: row, col: col + 1 }; // Move right
             }
         } else if (Phaser.Input.Keyboard.JustDown(this.scene.input.keyboard.keys[87])) { // W
             if (row > 0) {
-                undoable.push(playerPosition);
                 return { row: row - 1, col: col }; // Move up
             }
         } else if (Phaser.Input.Keyboard.JustDown(this.scene.input.keyboard.keys[83])) { // S
             if (row < gridSize - 1) {
-                undoable.push(playerPosition);
                 return { row: row + 1, col: col }; // Move down
             }
         }
     }
     
     // Handle plant interaction
-    checkforPlantInteraction(gridSize, playerPosition, grid, undoable) {
+    checkforPlantInteraction(gridSize, playerPosition) {
         if (!this.cursors || !this.scene.input.keyboard) {
             console.warn('Keyboard input or cursors are not available.');
             return;
@@ -52,22 +48,18 @@ export class PlayerActions {
 
         if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
             if (col > 0) {
-                undoable.push(grid);
                 return { row: row, col: col - 1 }; // Plant to the left
             }
         } else if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
             if (col < gridSize - 1) {
-                undoable.push(grid);
                 return { row: row, col: col + 1 }; // Plant to the right
             }
         } else if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
             if (row > 0) {
-                undoable.push(grid);
                 return { row: row - 1, col: col }; // Plant up
             }
         } else if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
             if (row < gridSize - 1) {
-                undoable.push(grid);
                 return { row: row + 1, col: col }; // Plant down
             }
         }

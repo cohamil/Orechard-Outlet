@@ -15,6 +15,8 @@ export class Game extends Scene {
         this.playerPosition = { row: 0, col: 0 }; // Tracks the player's position on the grid
         this.undoable = [];
         this.redoable = [];
+        
+        this.plantModeActive = false;
 
         // Initialize managers
         this.plantsManager = new PlantsManager(this);
@@ -39,7 +41,15 @@ export class Game extends Scene {
         this.UIElements = {
             forecastText: null,
             settingsButton: null,
-            tutorialButton: null
+            tutorialButton: null,
+            undoButton: null,
+            redoButton: null,
+            nextTurnButton: null,
+            plantModeButton: null,
+            upButton: null,
+            downButton: null,
+            leftButton: null,
+            rightButton: null,
         };
     }
 
@@ -109,10 +119,6 @@ export class Game extends Scene {
             console.error('Keyboard input system is not available.');
             return;
         }
-
-        // Add key listeners for save/load
-        // const loadKey = this.input.keyboard.addKey('L');
-        // loadKey.on('down', () => saveManager.showSaveSlots(), this);
 
         // Add a key listener for advancing turns
         const turnKey = this.input.keyboard.addKey('T');
@@ -189,20 +195,18 @@ export class Game extends Scene {
     }
 
     // Create the UI elements for the game scene
-    // Create the UI elements for the game scene
-    // Create the UI elements for the game scene
     createUIElements() {
         // Create forecast text
         const forecast = this.weatherSchedule.getNext();
         const forecastText = forecast ? i18n.t(forecast.toLowerCase()) : i18n.t('normal');
         this.UIElements.forecastText = this.add.text(Number(this.game.config.width) / 2 - 200, 0, i18n.t('forecast') + ': ' + forecastText, {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         });
 
         // Create Settings button
         this.UIElements.settingsButton = new TextButton(this, 0, 0, i18n.t('settings'), {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
             saveManager.saveGame();
@@ -211,13 +215,123 @@ export class Game extends Scene {
 
         // Create tutorial button
         this.UIElements.tutorialButton = new TextButton(this, 0, 70, i18n.t('tutorial'), {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
             this.game.scene.start('Tutorial');
         });
 
-        gameManager.setUIElements(this.UIElements.forecastText, this.UIElements.settingsButton, this.UIElements.tutorialButton);
+        // Create undo button
+        this.UIElements.undoButton = new TextButton(this, 0, 140, i18n.t('undo'), {
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            this.undo();
+        });
+
+        // Create redo button
+        this.UIElements.redoButton = new TextButton(this, 0, 210, i18n.t('redo'), {
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            this.redo();
+        });
+
+        // Create next turn button
+        this.UIElements.nextTurnButton = new TextButton(this, 0, 320, i18n.t('next_turn'), {
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            this.advanceTurn();
+        });
+
+        // Create plant mode button
+        this.UIElements.plantModeButton = new TextButton(this, 45, 450, this.plantModeActive ? i18n.t('move_mode') : i18n.t('plant_mode'), {
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            this.plantModeActive = !this.plantModeActive;
+            this.UIElements.plantModeButton.setText(this.plantModeActive ? i18n.t('move_mode') : i18n.t('plant_mode'));
+        });
+        
+        // Create up button
+        this.UIElements.upButton = new TextButton(this, 75, 545, '↑', {
+            fontFamily: 'Arial Black', fontSize: 70, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            if (this.playerPosition.row > 0) {
+                if (this.plantModeActive) {
+                    this.undoable.push(this.grid);
+                    this.redoable = [];
+                    this.grid = JSON.parse(JSON.stringify(this.grid));
+                    this.handlePlantInteraction({ row: this.playerPosition.row - 1, col: this.playerPosition.col });
+                } else {
+                    this.undoable.push(this.playerPosition);
+                    this.redoable = [];
+                    this.movePlayerTo({ row: this.playerPosition.row - 1, col: this.playerPosition.col });
+                }
+            }
+        });
+
+        // Create down button
+        this.UIElements.downButton = new TextButton(this, 75, 655, '↓', {
+            fontFamily: 'Arial Black', fontSize: 70, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            if (this.playerPosition.row < this.gridSize - 1) {
+                if (this.plantModeActive) {
+                    this.undoable.push(this.grid);
+                    this.redoable = [];
+                    this.grid = JSON.parse(JSON.stringify(this.grid));
+                    this.handlePlantInteraction({ row: this.playerPosition.row + 1, col: this.playerPosition.col });
+                }
+                else {
+                    this.undoable.push(this.playerPosition);
+                    this.redoable = [];
+                    this.movePlayerTo({ row: this.playerPosition.row + 1, col: this.playerPosition.col });
+                }
+            }
+        });
+
+        // Create left button
+        this.UIElements.leftButton = new TextButton(this, 0, 600, '←', {
+            fontFamily: 'Arial Black', fontSize: 70, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            if (this.playerPosition.col > 0) {
+                if (this.plantModeActive) {
+                    this.undoable.push(this.grid);
+                    this.redoable = [];
+                    this.grid = JSON.parse(JSON.stringify(this.grid));
+                    this.handlePlantInteraction({ row: this.playerPosition.row, col: this.playerPosition.col - 1 });
+                } else {
+                    this.undoable.push(this.playerPosition);
+                    this.redoable = [];
+                    this.movePlayerTo({ row: this.playerPosition.row, col: this.playerPosition.col - 1 });
+                }
+            }
+        });
+
+        // Create right button
+        this.UIElements.rightButton = new TextButton(this, 115, 600, '→', {
+            fontFamily: 'Arial Black', fontSize: 70, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            if (this.playerPosition.col < this.gridSize - 1) {
+                if (this.plantModeActive) {
+                    this.undoable.push(this.grid);
+                    this.redoable = [];
+                    this.grid = JSON.parse(JSON.stringify(this.grid));
+                    this.handlePlantInteraction({ row: this.playerPosition.row, col: this.playerPosition.col + 1 });
+                } else {
+                    this.undoable.push(this.playerPosition);
+                    this.redoable = [];
+                    this.movePlayerTo({ row: this.playerPosition.row, col: this.playerPosition.col + 1 });
+                }
+            }
+        });
+
+        gameManager.setUIElements(this.UIElements);
     }
 
     // Update the forecast UI
@@ -403,18 +517,22 @@ export class Game extends Scene {
     }
 
     handlePlayerActions() {
-        const movementDirection = this.playerActions.checkForPlayerMovement(this.gridSize, this.playerPosition, this.undoable);
+        const movementDirection = this.playerActions.checkForPlayerMovement(this.gridSize, this.playerPosition);
         if (movementDirection) {
+            this.undoable.push(this.playerPosition);
             this.redoable = [];
             this.movePlayerTo(movementDirection);
         }
 
-        const plantInteractionDirection = this.playerActions.checkforPlantInteraction(this.gridSize, this.playerPosition, this.grid, this.undoable);
+        const plantInteractionDirection = this.playerActions.checkforPlantInteraction(this.gridSize, this.playerPosition, this.grid);
         if (plantInteractionDirection) {
+            this.undoable.push(this.grid);
             this.redoable = [];
             this.grid = JSON.parse(JSON.stringify(this.grid));
             this.handlePlantInteraction(plantInteractionDirection);
         }
+
+        
     }
 
     // Method to move the player to a specific cell
