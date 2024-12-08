@@ -5,7 +5,7 @@ import { parse } from 'yaml';
 import { gameManager } from '../GameManager';
 import { PlantsManager } from '../PlantsManager';
 import { PlayerActions } from '../PlayerActions';
-import { SaveManager } from '../SaveManager';
+import { saveManager } from '../SaveManager';
 import i18n from '../i18n';
 
 export class Game extends Scene {
@@ -15,9 +15,12 @@ export class Game extends Scene {
         this.playerPosition = { row: 0, col: 0 }; // Tracks the player's position on the grid
         this.undoable = [];
         this.redoable = [];
+
         // Initialize managers
         this.plantsManager = new PlantsManager(this);
-        this.saveManager = new SaveManager(this, this.plantsManager);
+        saveManager.initializeSaveManager(this, this.plantsManager.getMaxConditions());
+
+        // Default growth conditions for plants
         this.defaultGrowthConditions = [
             { requiredSun: 1, requiredWater: 1, requiredNeighbors: -1 },
             { requiredSun: 1, requiredWater: 2, requiredNeighbors: -1 },
@@ -82,7 +85,7 @@ export class Game extends Scene {
                     const savedState = JSON.parse(autoSaveString);
                     if (this.isValidGameState(savedState)) {
                         this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
-                        this.saveManager.loadGameState(savedState);
+                        saveManager.loadGameState(savedState);
                         autoSaveLoaded = true;
                     }
                 }
@@ -109,7 +112,7 @@ export class Game extends Scene {
 
         // Add key listeners for save/load
         const loadKey = this.input.keyboard.addKey('L');
-        loadKey.on('down', () => this.saveManager.showSaveSlots(), this);
+        loadKey.on('down', () => saveManager.showSaveSlots(), this);
 
         // Add a key listener for advancing turns
         const turnKey = this.input.keyboard.addKey('T');
@@ -202,7 +205,7 @@ export class Game extends Scene {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
-            this.saveManager.saveGame();
+            saveManager.saveGame();
             this.game.scene.start('Settings');
         });
 
@@ -349,7 +352,7 @@ export class Game extends Scene {
         gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
         
         // Auto-save after each turn
-        this.saveManager.saveGame();
+        saveManager.saveGame();
     }
 
     updateWeather() {
@@ -431,7 +434,7 @@ export class Game extends Scene {
     // Method to handle plant interaction
     handlePlantInteraction(cell) {
         this.plantsManager.handlePlantInteraction(cell, this.grid);
-        this.saveManager.saveGame();
+        saveManager.saveGame();
         // Redraw the grid to reflect plant changes
         gameManager.setPlayer(this.player);
         gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);

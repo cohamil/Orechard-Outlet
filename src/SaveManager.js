@@ -1,11 +1,36 @@
+import 'phaser';
 
-export class SaveManager {
-    constructor(game, PlantsManager) {
+import i18n from './i18n';
+import { PopupWindow } from './popup-window';
+
+export class SaveManager extends Phaser.Data.DataManager {
+    game = null;
+    MAX_GROWTH_CONDITIONS = null;
+    
+    constructor() {
+        super(new Phaser.Events.EventEmitter());
         this.saveSlotPrefix = 'game_save_';
-        this.game = game;
         this.MAX_SPECIES_LENGTH = 8;
-        this.MAX_GROWTH_CONDITIONS = PlantsManager.getMaxConditions();
+        this.numSaveSlots = 3;
     }
+
+    setGame(game) {
+        this.game = game;
+    }
+
+    setMaxGrowthConditions(maxGrowthConditions) {
+        this.MAX_GROWTH_CONDITIONS = maxGrowthConditions;
+    }
+
+    initializeSaveManager(game, maxGrowthConditions) {
+        this.setGame(game);
+        this.setMaxGrowthConditions(maxGrowthConditions); 
+    }
+
+    isInitialized() {
+        return this.game !== null && this.MAX_GROWTH_CONDITIONS !== null;
+    }
+
 
     saveGame(slot) {
         const gameState = {
@@ -33,7 +58,6 @@ export class SaveManager {
                 localStorage.setItem(this.game.getAutoSaveKey(), serializedState);
             } else {
                 localStorage.setItem(this.saveSlotPrefix + slot, serializedState);
-                alert(`Game saved to ${slot}.`);
             }
         } catch (error) {
             console.error('Error saving game state:', error);
@@ -50,16 +74,99 @@ export class SaveManager {
         }
     }
 
-    showSaveSlots() {
-        const action = prompt('Enter action (save/load) and slot number (1-5), e.g., "save 1" or "load 2":');
-        if (!action) return;
+    showSaveSlots(scene) {
+        const saveSlotPopup = new PopupWindow(scene, scene.cameras.main.width / 2, scene.cameras.main.height / 2, 900, 700, i18n.t('choose_save_slot'), "", {
+            fontFamily: 'Arial Black', fontSize: 24, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        });
+        saveSlotPopup.changeCloseButtonPosition(-200, 300);
 
-        const [actionType, slotNumber] = action.toLowerCase().split(' ');
-        const slot = `slot${slotNumber}`;
-        if (actionType === 'save') {
-            this.saveGame(slot);
-        } else if (actionType === 'load') {
-            this.loadGame(slot);
+        for (let i = 1; i <= this.numSaveSlots; i++) {
+            this.createSaveSlot(scene, saveSlotPopup, -400, -275 + (175 * (i - 1)), 600, 150, i);
+        }
+
+        // Clear save slots button
+        const clearSaveSlotsButton = scene.add.rectangle(200, 300, 400, 75, 0xff0000)
+            .setOrigin(0.5)
+            .setInteractive()
+            .on('pointerup', () => {
+                this.clearSaveSlots();
+                saveSlotPopup.setVisible(false);
+                this.showSaveSlots(scene);
+            })
+            .on('pointerover', () => {
+                clearSaveSlotsButton.setFillStyle(0xffff00);
+            })
+            .on('pointerout', () => {
+                clearSaveSlotsButton.setFillStyle(0xff0000);
+            })
+            .on('pointerdown', () => {
+                clearSaveSlotsButton.setFillStyle(0x00ffff);
+            });
+
+        saveSlotPopup.add(clearSaveSlotsButton);
+        clearSaveSlotsButton.text = scene.add.text(200, 300, i18n.t('clear_save_slots'), {
+            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }).setOrigin(0.5);
+        saveSlotPopup.add(clearSaveSlotsButton.text);
+    }
+
+    createSaveSlot(scene, saveSlotPopup, x, y, width, height, slotNumber) {
+        const isLoaded = localStorage.getItem(this.saveSlotPrefix + slotNumber) ? true : false;
+        
+        const saveSlotColor = isLoaded ? saveSlotColors.loaded : saveSlotColors.empty;
+        const saveSlotDisplayText = isLoaded ? "Override Slot " + slotNumber : "Save Slot " + slotNumber;
+
+        const saveSlot = scene.add.rectangle(x, y, width, height, saveSlotColor)
+            .setOrigin(0)
+            .setInteractive()
+            .on('pointerup', () => {
+                this.saveGame(slotNumber);
+                this.createSaveSlot(scene, saveSlotPopup, x, y, width, height, slotNumber);
+            })
+            .on('pointerover', () => {
+                saveSlot.setFillStyle(0xffff00);
+            })
+            .on('pointerout', () => {
+                saveSlot.setFillStyle(saveSlotColor);
+            })
+            .on('pointerdown', () => {
+                saveSlot.setFillStyle(0x00ffff);
+            });
+        saveSlotPopup.add(saveSlot);
+        saveSlot.text = scene.add.text(-100, y + 75, i18n.t('display_save_slot_text', {saveSlotDisplayText}), {
+            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }).setOrigin(0.5);
+        saveSlotPopup.add(saveSlot.text);
+
+        if (isLoaded) {
+            const loadButton = scene.add.rectangle(x + 625, y, 200, height, 0xffff00)
+                .setOrigin(0)
+                .setInteractive()
+                .on('pointerup', () => {
+                    this.loadGame(slotNumber);
+                    scene.scene.stop('Settings');
+                })
+                .on('pointerover', () => {
+                    loadButton.setFillStyle(0x0000ff);
+                })
+                .on('pointerout', () => {
+                    loadButton.setFillStyle(0xffff00);
+                })
+            saveSlotPopup.add(loadButton);
+            loadButton.text = scene.add.text(x + 725, y + 75, i18n.t('load'), {
+                fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+                stroke: '#000000', strokeThickness: 6
+            }).setOrigin(0.5);
+            saveSlotPopup.add(loadButton.text);
+        }
+    }
+
+    clearSaveSlots() {
+        for (let i = 1; i <= this.numSaveSlots; i++) {
+            localStorage.removeItem(this.saveSlotPrefix + i);
         }
     }
 
@@ -185,3 +292,10 @@ export class SaveManager {
         return grid;
     }
 }
+
+const saveSlotColors = {
+    "loaded": 0x00ff00,
+    "empty": 0xcccccc,
+}
+
+export const saveManager = new SaveManager();
