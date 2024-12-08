@@ -20,7 +20,7 @@ i18n
           "no": "No",
           "controls": "Controls",
           "controls_title": "Controls (Keyboard)",
-          "controls_content": "Move: WASD\nSow/Harvest Plants: Arrow Keys\nAdvance Turn: T\nUndo Action: Z\nRedo Action: X\nLoad/Save Game: L",
+          "controls_content": "Move: WASD\nSow/Harvest Plants: Arrow Keys\nAdvance Turn: T\nUndo Action: Z\nRedo Action: X",
           "goal": "Goal",
           "goal_title": "Goal",
           "goal_content": "Harvest {{winCondition}} fully grown plants in the \ngarden to win the game.\n\nBe mindful of each species' growth requirements.\n\nClick on a plant to view its growth \nlevel/requirements.",
@@ -62,6 +62,11 @@ i18n
           "save_slot_text": "Save Slot {{slotNumber}}",
           "load": "Load",
           "clear_save_slots": "Clear Save Slots",
+          "undo": "Undo",
+          "redo": "Redo",
+          "next_turn": "Next Turn",
+          "move_mode": "Move\nMode",
+          "plant_mode": "Plant\nMode",
         }
       },
       zh: {
@@ -79,7 +84,7 @@ i18n
           "no": "否",
           "controls": "控制",
           "controls_title": "控制（键盘）",
-          "controls_content": "移动：WASD\n播种/收获植物：箭头键\n前进回合：T\n撤销操作：Z\n重做操作：X\n加载/保存游戏：L",
+          "controls_content": "移动：WASD\n播种/收获植物：箭头键\n前进回合：T\n撤销操作：Z\n重做操作：X",
           "goal": "目标",
           "goal_title": "目标",
           "goal_content": "在花园中收获{{winCondition}}株完全成熟的植物以赢得游戏。\n\n注意每个物种的生长要求。\n\n点击植物查看其生长水平/要求。",
@@ -121,6 +126,11 @@ i18n
           "save_slot_text": "保存插槽{{slotNumber}}",
           "load": "加载",
           "clear_save_slots": "清除保存插槽",
+          "undo": "撤销",
+          "redo": "重做",
+          "next_turn": "下一回合",
+          "move_mode": "移动\n模式",
+          "plant_mode": "种植\n模式",
         }
       },
       he: {
@@ -138,7 +148,7 @@ i18n
           "no": "לא",
           "controls": "בקרות",
           "controls_title": "בקרות (מקלדת)",
-          "controls_content": "תנועה: WASD\nזריעה/קציר צמחים: מקשי חצים\nהתקדם בתור: T\nבטל פעולה: Z\nבצע שוב פעולה: X\nטען/שמור משחק: L",
+          "controls_content": "תנועה: WASD\nזריעה/קציר צמחים: מקשי חצים\nהתקדם בתור: T\nבטל פעולה: Z\nבצע שוב פעולה: X",
           "goal": "מטרה",
           "goal_title": "מטרה",
           "goal_content": "קצור {{winCondition}} צמחים בוגרים לחלוטין בגינה כדי לנצח במשחק.\n\nשים לב לדרישות הצמיחה של כל מין.\n\nלחץ על צמח כדי לראות את רמת הצמיחה/דרישותיו.",
@@ -180,6 +190,11 @@ i18n
           "save_slot_text": "שמור בחריץ {{slotNumber}}",
           "load": "טען",
           "clear_save_slots": "נקה חריצי שמירה",
+          "undo": "בטל",
+          "redo": "בצע שוב",
+          "next_turn": "תור הבא",
+          "move_mode": "מצב\nתנועה",
+          "plant_mode": "מצב\nצמח",
         }
       }
     },

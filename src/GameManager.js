@@ -47,10 +47,8 @@ class GameManager extends Phaser.Data.DataManager {
         this.player = player;
     }
 
-    setUIElements(forecastText, settingsButton, tutorialButton) {
-        this.UIElements.forecastText = forecastText;
-        this.UIElements.settingsButton = settingsButton;
-        this.UIElements.tutorialButton = tutorialButton;
+    setUIElements(UIElements) {
+        this.UIElements = UIElements;
     }
 
     drawGrid(scene, gridSize, cellSize, grid, plantsManager) {
