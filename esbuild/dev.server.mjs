@@ -4,7 +4,7 @@ import inlineImage from "esbuild-plugin-inline-image";
 esbuildServe(
     {
         logLevel: "info",
-        entryPoints: ["src/main.ts"],
+        entryPoints: ["src/main.js"],
         bundle: true,
         outfile: "docs/bundle.min.js",
         plugins: [ inlineImage() ]

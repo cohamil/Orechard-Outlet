@@ -1,70 +1,56 @@
 import 'phaser';
 
-import { TextButton } from './text-button';
-import { Grid, Coordinate } from './scenes/Game';
-import { PlantsManager, Plant } from './PlantsManager';
-
-class GameManager extends Phaser.Data.DataManager
-{
-    private isPlaying: boolean = false;
-    private autoSaveKey: string = 'game_autosave';
-    private confirmLoad: boolean | null = null;
-    private player: Phaser.GameObjects.Rectangle | null = null;
-    private UIElements: {
-        forecastText: Phaser.GameObjects.Text | null;
-        settingsButton: TextButton | null;
-        tutorialButton: TextButton | null;
-    } = {
-        forecastText: null,
-        settingsButton: null,
-        tutorialButton: null,
-    };
-    
-    constructor () {
+class GameManager extends Phaser.Data.DataManager {
+    constructor() {
         super(new Phaser.Events.EventEmitter());
+        this.isPlaying = false;
+        this.autoSaveKey = 'game_autosave';
+        this.confirmLoad = null;
+        this.player = null;
+        this.UIElements = {
+            forecastText: null,
+            settingsButton: null,
+            tutorialButton: null,
+        };
     }
 
-    setPlaying (value: boolean){
+    setPlaying(value) {
         this.isPlaying = value;
     }
 
-    getPlaying () {
+    getPlaying() {
         return this.isPlaying;
     }
 
-    printBool () {
-        console.log(this.isPlaying);
-    }
-
-    setConfirmLoad (value: boolean) {
+    setConfirmLoad(value) {
         this.confirmLoad = value;
     }
 
-    getConfirmLoad () {
+    getConfirmLoad() {
         return this.confirmLoad;
     }
 
-    getAutoSaveKey () {
+    getAutoSaveKey() {
         return this.autoSaveKey;
     }
 
-    setPlayer (player: Phaser.GameObjects.Rectangle) {
+    setPlayer(player) {
         this.player = player;
     }
 
-    setUIElements (forecastText: Phaser.GameObjects.Text, settingsButton: TextButton, tutorialButton: TextButton) {
+    setUIElements(forecastText, settingsButton, tutorialButton) {
         this.UIElements.forecastText = forecastText;
         this.UIElements.settingsButton = settingsButton;
         this.UIElements.tutorialButton = tutorialButton;
     }
-    
-    drawGrid (scene: Phaser.Scene, gridSize: number, cellSize: number, grid: Grid, plantsManager: PlantsManager) {
+
+    drawGrid(scene, gridSize, cellSize, grid, plantsManager) {
         const startX = (scene.cameras.main.width - gridSize * cellSize) / 2;
         const startY = (scene.cameras.main.height - gridSize * cellSize) / 2;
-        
+
         // Destroy existing grid elements, but keep the player and UI elements
         scene.children.list
-            .filter(child => child !== this.player && !Object.values(this.UIElements).includes(child as any))
+            .filter(child => child !== this.player && !Object.values(this.UIElements).includes(child))
             .forEach(child => child.destroy());
 
         let cellColor = 0xcccccc; // Default gray
@@ -99,11 +85,9 @@ class GameManager extends Phaser.Data.DataManager
                         .setOrigin(0)
                         .setStrokeStyle(1, 0x000000);
                 } else if (cellResource.sun) {
-                    //console.log('Cell has sun');
                     // Sun-only cell (yellow)
                     cellColor = 0xffff00;
                 } else if (cellResource.water) {
-                    //console.log('Cell has water');
                     // Water cell (blue with intensity based on water level)
                     cellColor = this.getWaterColor(cellResource.water);
                 }
@@ -117,12 +101,11 @@ class GameManager extends Phaser.Data.DataManager
                 }
             }
         }
-
         plantsManager.drawPlants(cellSize, startX, startY, cellColor, grid);
     }
 
     // Helper method to get water color based on moisture level
-    private getWaterColor(waterLevel: number): number {
+    getWaterColor(waterLevel) {
         switch(waterLevel) {
             case 1: return 0x87CEEB;   // Light blue
             case 2: return 0x4682B4;   // Medium blue

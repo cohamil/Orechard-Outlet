@@ -5,11 +5,6 @@ import { gameManager } from '../GameManager';
 
 export class Tutorial extends Scene
 {
-    camera: Phaser.Cameras.Scene2D.Camera;
-    background: Phaser.GameObjects.Image;
-    title_text : Phaser.GameObjects.Text;
-    controlsPopup: Phaser.GameObjects.Container;
-
     constructor ()
     {
         super('Tutorial');

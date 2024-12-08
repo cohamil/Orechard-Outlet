@@ -1,96 +1,58 @@
 import { Scene } from 'phaser';
-
 import { TextButton } from '../text-button';
-//import { PopupWindow } from '../popup-window';
+// import { PopupWindow } from '../popup-window'; // Uncomment if needed
 import { parse } from 'yaml';
 import { gameManager } from '../GameManager';
-import { PlantsManager, Plant, GrowthCondition } from '../PlantsManager';
+import { PlantsManager } from '../PlantsManager';
 import { PlayerActions } from '../PlayerActions';
 import { SaveManager } from '../SaveManager';
 
 export class Game extends Scene {
-    private gridSize: number; // Number of rows and columns
-    private cellSize: number = 64; // Size of each cell in pixels
-    private player!: Phaser.GameObjects.Rectangle; // The player's visual representation
-    private playerPosition: Coordinate = { row: 0, col: 0 }; // Tracks the player's position on the grid
-    private undoable: (Grid | Coordinate)[];   // Tracks undoable actions. If needed, can be changed to an any[] array
-    private redoable: (Grid | Coordinate)[];    // Tracks redoable actions.  ""
-    private gameSettings: Settings;
-                  // Define how game should be played out
-    private weatherSchedule: {next() : weatherKey | null, getNext(): weatherKey | null};
-    private resourceModifier = {
-        sun: 1,
-        water: 1
-    }
-    
-    // New properties for cell resources
-    private grid!: Grid;
-    private sunProbability: number;
-    private waterProbability: number;
-
-    // Constants
-    private MAXED_PLANTS_WIN_CONDITION: number;
-    private MAX_SPECIES_LENGTH = 8;
-    private numMaxedPlants = 0;
-    private defaultGrowthConditions: GrowthCondition[] = [
-        {
-            requiredSun: 1,
-            requiredWater: 1,
-            requiredNeighbors: -1
-        },
-        {
-            requiredSun: 1,
-            requiredWater: 2,
-            requiredNeighbors: -1
-        },
-        {
-            requiredSun: 1,
-            requiredWater: 2,
-            requiredNeighbors: 0
-        },
-    ]
-
-    // Add PlantsManager here
-    private plantsManager!: PlantsManager;
-
-    // Add PlayerActions here
-    private playerActions!: PlayerActions;
-
-    //add SaveManager here
-    private saveManager: SaveManager;
-
-    // UI properties
-    private UIElements: { 
-        forecastText: Phaser.GameObjects.Text | null,
-        settingsButton: TextButton | null
-        tutorialButton: TextButton | null 
-    } = {
-        forecastText: null,
-        settingsButton: null,
-        tutorialButton: null,
-    }
-    
     constructor() {
         super('Game');
+        this.cellSize = 64; // Size of each cell in pixels
+        this.playerPosition = { row: 0, col: 0 }; // Tracks the player's position on the grid
+        this.undoable = [];
+        this.redoable = [];
         this.saveManager = new SaveManager(this);
+        this.defaultGrowthConditions = [
+            { requiredSun: 1, requiredWater: 1, requiredNeighbors: -1 },
+            { requiredSun: 1, requiredWater: 2, requiredNeighbors: -1 },
+            { requiredSun: 1, requiredWater: 2, requiredNeighbors: 0 }
+        ];
+        this.weatherSchedule = { next: () => null, getNext: () => null }; // Initialize
+        this.gridSize = 0; // Number of rows and columns
+        this.numMaxedPlants = 0;
+        this.MAX_SPECIES_LENGTH = 8;
+        this.resourceModifier = { sun: 1, water: 1 };
+        this.grid = [];
+        this.sunProbability = 0;
+        this.waterProbability = 0;
+
+        // UI properties
+        this.UIElements = {
+            forecastText: null,
+            settingsButton: null,
+            tutorialButton: null
+        };
     }
 
     preload() {
-        this.load.text('yamlData' , '/assets/config.yaml')
+        this.load.text('yamlData', 'assets/config.yaml');
     }
 
     create() {
         this.cameras.main.setBackgroundColor(0x87ceeb);
-    
+
         // Initialize managers
         this.plantsManager = new PlantsManager(this.MAX_SPECIES_LENGTH, this);
         this.playerActions = new PlayerActions(this);
-    
+
         // Create initial plant species
         this.plantsManager.createSpecies("0xDA70D6", this.defaultGrowthConditions);
         this.plantsManager.createSpecies("0x4CBB17", this.defaultGrowthConditions);
         this.plantsManager.createSpecies("0xF28C28", this.defaultGrowthConditions);
-    
+
         // Always load YAML settings first
         if (this.cache.text.has('yamlData')) {
             try {
@@ -108,9 +70,9 @@ export class Game extends Scene {
             console.error("YAML file not found, using defaults.");
             this.setDefaultSettings();
         }
-    
+
         let autoSaveLoaded = false;
-    
+
         // Try loading autosave
         if (gameManager.getConfirmLoad()) {
             try {
@@ -127,103 +89,103 @@ export class Game extends Scene {
                 console.error('Error loading auto-save:', error);
             }
         }
-    
+
         if (!autoSaveLoaded) {
             this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
             this.updateWeather();
             this.createPlayer();
+            this.movePlayerTo({row: 0, col: 0});
             this.initializeCellResources();
             gameManager.setPlayer(this.player);
             gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
         }
-    
+
         // Set up keyboard input
         if (!this.input.keyboard) {
             console.error('Keyboard input system is not available.');
             return;
         }
-    
+
         // Add key listeners for save/load
         const loadKey = this.input.keyboard.addKey('L');
         loadKey.on('down', () => this.saveManager.showSaveSlots(), this);
-        
+
         // Add a key listener for advancing turns
         const turnKey = this.input.keyboard.addKey('T');
-        turnKey.on('down', this.advanceTurn, this);
-    
+        turnKey.on('down', this.advanceTurn.bind(this));
+
         // Add key listeners for undo/redo
-        this.undoable = [];
         const undoKey = this.input.keyboard.addKey('Z');
-        undoKey.on('down', this.undo, this);
-        this.redoable = [];
+        undoKey.on('down', this.undo.bind(this));
         const redoKey = this.input.keyboard.addKey('X');
-        redoKey.on('down', this.redo, this);
-    
+        redoKey.on('down', this.redo.bind(this));
+
         // Reset Win Condition if not loaded
         if (!autoSaveLoaded) {
             this.numMaxedPlants = 0;
         }
-    
+
         // Create UI elements
         this.createUIElements();
     }
 
-    public getGrid(): Grid { return this.grid; }
-    public getPlayerPosition(): Coordinate { return this.playerPosition; }
-    public getNumMaxedPlants(): number { return this.numMaxedPlants; }
-    public getUndoable(): (Grid | Coordinate)[] { return this.undoable; }
-    public getRedoable(): (Grid | Coordinate)[] { return this.redoable; }
-    public getGameSettings(): Settings { return this.gameSettings; }
-    public getAutoSaveKey(): string { return gameManager.getAutoSaveKey(); }
-    public getGridSize(): number { return this.gridSize; }
-    public getWeatherIndex(): number {
-        return (this.weatherSchedule as any).index || 0;
+    getGrid() { return this.grid; }
+    getPlayerPosition() { return this.playerPosition; }
+    getNumMaxedPlants() { return this.numMaxedPlants; }
+    getUndoable() { return this.undoable; }
+    getRedoable() { return this.redoable; }
+    getGameSettings() { return this.gameSettings; }
+    getAutoSaveKey() { return gameManager.getAutoSaveKey(); }
+    getGridSize() { return this.gridSize; }
+
+    getWeatherIndex() {
+        return (this.weatherSchedule).index || 0;
     }
-    public getWeatherSchedule(): weatherKey[] {
+
+    getWeatherSchedule() {
         return this.gameSettings.weatherSchedule;
     }
 
-// In Game.ts loadState() method, modify order:
-public loadState(savedState: any, grid: Grid) {
-    console.log("Grid in loadState:", grid); // Add debug
-    // Load grid first
-    this.grid = grid;
-    
-    // Then settings
-    this.gameSettings = savedState.gameSettings;
-    this.gridSize = this.gameSettings.gridSize;
-    this.sunProbability = this.gameSettings.defaultSunProbability;
-    this.waterProbability = this.gameSettings.defaultWaterProbability;
-    this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
+    // Modify loadState() method order
+    loadState(savedState, grid) {
+        console.log("Grid in loadState:", grid); // Add debug
+        // Load grid first
+        this.grid = grid;
 
-    // Load state
-    this.playerPosition = { ...savedState.playerPosition };
-    this.numMaxedPlants = savedState.numMaxedPlants || 0;
-    this.undoable = savedState.undoable || [];
-    this.redoable = savedState.redoable || [];
+        // Then settings
+        this.gameSettings = savedState.gameSettings;
+        this.gridSize = this.gameSettings.gridSize;
+        this.sunProbability = this.gameSettings.defaultSunProbability;
+        this.waterProbability = this.gameSettings.defaultWaterProbability;
+        this.MAXED_PLANTS_WIN_CONDITION = this.gameSettings.plantsToMax;
 
-    // Weather after grid
-    this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
-    this.updateWeather();
+        // Load state
+        this.playerPosition = { ...savedState.playerPosition };
+        this.numMaxedPlants = savedState.numMaxedPlants || 0;
+        this.undoable = savedState.undoable || [];
+        this.redoable = savedState.redoable || [];
 
-    // Visual updates last
-    this.createPlayer();
-    gameManager.setPlayer(this.player);
-    gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
-    this.repositionPlayer();
-}
-    
-    public initializeNewGame() {
+        // Weather after grid
+        this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
+        this.updateWeather();
+
+        // Visual updates last
+        this.createPlayer();
+        gameManager.setPlayer(this.player);
+        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
+    }
+
+    initializeNewGame() {
         this.setDefaultSettings();
         this.initializeCellResources();
         this.createPlayer();
-        this.numMaxedPlants = 0;  // Add this line
+        this.numMaxedPlants = 0;  // Set maxed plants to 0
         gameManager.setPlayer(this.player);
         gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
     }
 
     // Create the UI elements for the game scene
-    private createUIElements(){
+    createUIElements() {
         // Create forecast text
         const forecastText = this.weatherSchedule.getNext() || 'NORMAL';
         this.UIElements.forecastText = this.add.text(Number(this.game.config.width) / 2 - 200, 0, 'Forecast: ' + forecastText, {
@@ -251,28 +213,28 @@ public loadState(savedState: any, grid: Grid) {
         gameManager.setUIElements(this.UIElements.forecastText, this.UIElements.settingsButton, this.UIElements.tutorialButton);
     }
 
-    // Update the forecacst UI
-    private updateForecastUI(){
-        if (this.UIElements.forecastText){
+    // Update the forecast UI
+    updateForecastUI() {
+        if (this.UIElements.forecastText) {
             const forecastText = this.weatherSchedule.getNext() || 'NORMAL';
             this.UIElements.forecastText.setText('Forecast: ' + forecastText);
         }
     }
 
-    private setDefaultSettings(){
+    setDefaultSettings() {
         this.gameSettings = {
             gridSize: 10,
             plantsToMax: 4,
             defaultSunProbability: 0.4,
             defaultWaterProbability: 0.4,
             weatherSchedule: []
-        }
+        };
     }
 
-    private createIterator(array: weatherKey[]): {next() : weatherKey | null, getNext(): weatherKey | null} {
+    createIterator(array) {
         let index = 0;
-        const schedule = array;  // Keep reference to original schedule
-    
+        const schedule = array;  // Keep reference to the original schedule
+
         return {
             next: function() {
                 // If we hit the end, reset index to start
@@ -294,10 +256,10 @@ public loadState(savedState: any, grid: Grid) {
                 }
                 return null;
             }
-        }
+        };
     }
 
-    private isValidGameState(state: any): state is GameState {
+    isValidGameState(state) {
         return (
             state &&
             // Validate grid is a Base64 string
@@ -320,7 +282,7 @@ public loadState(savedState: any, grid: Grid) {
     }
 
     // Initialize cell resources with random generation
-    private initializeCellResources() {
+    initializeCellResources() {
         this.grid = [];
         for (let row = 0; row < this.gridSize; row++) {
             this.grid[row] = [];
@@ -331,10 +293,9 @@ public loadState(savedState: any, grid: Grid) {
     }
 
     // Randomly generate resources for a cell
-    private generateCellResources(): CellResource {
+    generateCellResources() {
         const sunLevel = Math.random() < this.sunProbability ? 1 : 0;
         const waterLevel = Math.random() < this.waterProbability ? 1 : 0;
-
         return {
             sun: sunLevel,
             water: waterLevel,
@@ -343,33 +304,29 @@ public loadState(savedState: any, grid: Grid) {
     }
 
     // Advance turn with new resource mechanics
-    private advanceTurn() {
+    advanceTurn() {
         this.updateWeather();
         this.updateForecastUI();
         this.undoable.push(this.grid);
         this.redoable = [];
-        this.grid = JSON.parse(JSON.stringify(this.grid));       // Dereference this.grid from the object in undoable array
+        this.grid = JSON.parse(JSON.stringify(this.grid)); // Dereference this.grid from the object in undoable array
+
         // Update resources for each cell
         for (let row = 0; row < this.gridSize; row++) {
             for (let col = 0; col < this.gridSize; col++) {
                 const currentCell = this.grid[row][col];
-
                 // Plant growth mechanics
                 if (currentCell.plant) {
-                    this.numMaxedPlants = this.plantsManager.updatePlantGrowth({row: row, col: col}, this.numMaxedPlants, this.grid);
+                    this.numMaxedPlants = this.plantsManager.updatePlantGrowth({ row: row, col: col }, this.numMaxedPlants, this.grid);
                 }
-
                 // Check for the win condition
                 if (this.numMaxedPlants === this.MAXED_PLANTS_WIN_CONDITION) {
-                    //console.log('You win!');
                     this.scene.start('GameOver');
                     this.playerPosition = { row: 0, col: 0 };
                     return;
                 }
-
                 // Sun mechanics
                 currentCell.sun = Math.random() / this.resourceModifier.sun < this.sunProbability ? 1 : 0;
-
                 // Water mechanics
                 if (currentCell.water > 0) {
                     // For cells with water, randomly maintain, increase, or decrease
@@ -381,17 +338,17 @@ public loadState(savedState: any, grid: Grid) {
                 }
             }
         }
+
         // Redraw the grid to reflect new resources
-        //this.drawGrid();
         gameManager.setPlayer(this.player);
         gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
-
+        
         // Auto-save after each turn
         this.saveManager.saveGame();
     }
 
-    private updateWeather() {
-        const newWeather: weatherKey | null = this.weatherSchedule.next();
+    updateWeather() {
+        const newWeather = this.weatherSchedule.next();
         
         // Explicitly check for valid weather key
         if (newWeather && Weathers[newWeather]) {
@@ -408,39 +365,36 @@ public loadState(savedState: any, grid: Grid) {
         }
     }
 
-    private createPlayer() {
+    createPlayer() {
         const startX = (this.cameras.main.width - this.gridSize * this.cellSize) / 2;
         const startY = (this.cameras.main.height - this.gridSize * this.cellSize) / 2;
 
         // Place the player at the initial position (row 0, col 0)
         const x = startX + this.playerPosition.col * this.cellSize + this.cellSize / 2;
         const y = startY + this.playerPosition.row * this.cellSize + this.cellSize / 2;
-
         this.player = this.add
             .rectangle(x, y, this.cellSize * 0.5, this.cellSize * 0.5, 0xff0000)
             .setOrigin(0.5)
             .setDepth(10); // Ensure player is drawn on top of grid cells
     }
 
-    private repositionPlayer() {
+    repositionPlayer() {
         const startX = (this.cameras.main.width - this.gridSize * this.cellSize) / 2;
         const startY = (this.cameras.main.height - this.gridSize * this.cellSize) / 2;
-    
+
         // Ensure the player exists before attempting to reposition
         if (!this.player) {
             console.error('Player object is undefined during repositioning.');
             return;
         }
-    
+
         // Reposition the player
         const x = startX + this.playerPosition.col * this.cellSize + this.cellSize / 2;
         const y = startY + this.playerPosition.row * this.cellSize + this.cellSize / 2;
-    
         this.player.setPosition(x, y);
     }
-    
 
-    private handlePlayerActions() {
+    handlePlayerActions() {
         const movementDirection = this.playerActions.checkForPlayerMovement(this.gridSize, this.playerPosition, this.undoable);
         if (movementDirection) {
             this.redoable = [];
@@ -456,7 +410,7 @@ public loadState(savedState: any, grid: Grid) {
     }
 
     // Method to move the player to a specific cell
-    private movePlayerTo(cell: Coordinate) {
+    movePlayerTo(cell) {
         const startX = (this.cameras.main.width - this.gridSize * this.cellSize) / 2;
         const startY = (this.cameras.main.height - this.gridSize * this.cellSize) / 2;
 
@@ -470,94 +424,64 @@ public loadState(savedState: any, grid: Grid) {
     }
 
     // Method to handle plant interaction
-    private handlePlantInteraction(cell: Coordinate) {
+    handlePlantInteraction(cell) {
         this.plantsManager.handlePlantInteraction(cell, this.grid);
         this.saveManager.saveGame();
-
         // Redraw the grid to reflect plant changes
-        //this.drawGrid();
         gameManager.setPlayer(this.player);
         gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
     }
 
     // Handle UNDO and REDO operations
-    private undo(){
-        if (this.undoable.length > 0){
-            const action: Grid | Coordinate = this.undoable.pop()!;
-            if (Array.isArray(action)){         // cheap way to check if action is a Grid
+    undo() {
+        if (this.undoable.length > 0) {
+            const action = this.undoable.pop();
+            if (Array.isArray(action)) { // Check if action is a Grid
                 this.redoable.push(this.grid);
                 this.grid = action;
                 gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
-            }else{                              // otherwise action is a Coordinate
+            } else { // Otherwise action is a Coordinate
                 this.redoable.push(this.playerPosition);
-                this.movePlayerTo(action)
+                this.movePlayerTo(action);
             }
         }
     }
-    private redo(){
-        if (this.redoable.length > 0){
-            const action: Grid | Coordinate = this.redoable.pop()!;
-            if (Array.isArray(action)){
+
+    redo() {
+        if (this.redoable.length > 0) {
+            const action = this.redoable.pop();
+            if (Array.isArray(action)) {
                 this.undoable.push(this.grid);
                 this.grid = action;
                 gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
-            }else{
-                this.undoable.push(this.playerPosition)
-                this.movePlayerTo(action)
+            } else {
+                this.undoable.push(this.playerPosition);
+                this.movePlayerTo(action);
             }
         }
     }
 }
 
-// Interface for game state
-interface GameState {
-    grid: ArrayBuffer;  // Changed from Grid to ArrayBuffer
-    playerPosition: Coordinate;
-    numMaxedPlants: number;
-    undoable: (Grid | Coordinate)[];
-    redoable: (Grid | Coordinate)[];
-    gameSettings: Settings;
-    weatherIndex: number;
-}
-
-// Interface to define cell resource structure
-export interface CellResource {
-    sun: number;
-    water: number; // 0-3 water levels
-    plant: Plant | null; // Plant object or null if no plant
-}
-export type Grid = CellResource[][];
-export interface Coordinate {
-    row: number;
-    col: number;
-}
-// Interface to define game settings
-interface Settings {
-    gridSize: number,
-    plantsToMax: number,
-    defaultSunProbability: number,
-    defaultWaterProbability: number
-    weatherSchedule: weatherKey[]
-}
+// Type alias for CellResource
+//export type Grid = CellResource[][];
 
 // Enum to define types of weather
-type weatherKey = keyof typeof Weathers;
-
+// Note: Enums can be defined using constants or simple objects in JavaScript.
 const Weathers = Object.freeze({
-    SUNNY : {
+    SUNNY: {
         sun: 2,
         water: 1
     },
-    RAINY : {
+    RAINY: {
         sun: 1,
         water: 2
     },
-    CLOUDY : {
+    CLOUDY: {
         sun: 0.5,
         water: 1
     },
-    DEFAULT : {
+    DEFAULT: {
         sun: 1,
         water: 1
     }
-})
+});
