@@ -1,10 +1,10 @@
 
 export class SaveManager {
-    constructor(game) {
+    constructor(game, PlantsManager) {
         this.saveSlotPrefix = 'game_save_';
         this.game = game;
         this.MAX_SPECIES_LENGTH = 8;
-        this.MAX_GROWTH_CONDITIONS = 5;
+        this.MAX_GROWTH_CONDITIONS = PlantsManager.getMaxConditions();
     }
 
     saveGame(slot) {

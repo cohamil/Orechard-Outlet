@@ -15,7 +15,9 @@ export class Game extends Scene {
         this.playerPosition = { row: 0, col: 0 }; // Tracks the player's position on the grid
         this.undoable = [];
         this.redoable = [];
-        this.saveManager = new SaveManager(this);
+        // Initialize managers
+        this.plantsManager = new PlantsManager(this);
+        this.saveManager = new SaveManager(this, this.plantsManager);
         this.defaultGrowthConditions = [
             { requiredSun: 1, requiredWater: 1, requiredNeighbors: -1 },
             { requiredSun: 1, requiredWater: 2, requiredNeighbors: -1 },
@@ -45,14 +47,12 @@ export class Game extends Scene {
     create() {
         this.cameras.main.setBackgroundColor(0x87ceeb);
 
-        // Initialize managers
-        this.plantsManager = new PlantsManager(this.MAX_SPECIES_LENGTH, this);
         this.playerActions = new PlayerActions(this);
 
-        // Create initial plant species
-        this.plantsManager.createSpecies("0xDA70D6", this.defaultGrowthConditions);
-        this.plantsManager.createSpecies("0x4CBB17", this.defaultGrowthConditions);
-        this.plantsManager.createSpecies("0xF28C28", this.defaultGrowthConditions);
+        // Create initial plant species (species, maxLevel, conditions)
+        this.plantsManager.createSpecies("lilac", this.defaultGrowthConditions.length, this.defaultGrowthConditions);
+        this.plantsManager.createSpecies("daisy", this.defaultGrowthConditions.length, this.defaultGrowthConditions);
+        this.plantsManager.createSpecies("tulip", this.defaultGrowthConditions.length, this.defaultGrowthConditions);
 
         // Always load YAML settings first
         if (this.cache.text.has('yamlData')) {
