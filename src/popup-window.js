@@ -17,7 +17,7 @@ export class PopupWindow extends Phaser.GameObjects.Container {
         this.add(this.contentText);
         
         // Close Button for the popup
-        const closeButton = new TextButton(scene, -50, height / 2 - 50, i18n.t('close'), {
+        this.closeButton = new TextButton(scene, -50, height / 2 - 50, i18n.t('close'), {
             fontFamily: 'Arial Black',
             fontSize: 28,
             color: '#ffffff',
@@ -26,9 +26,13 @@ export class PopupWindow extends Phaser.GameObjects.Container {
         }, () => {
             this.setVisible(false);
         });
-        this.add(closeButton);
+        this.add(this.closeButton);
         this.setDepth(1000);
         scene.add.existing(this);
+    }
+
+    changeCloseButtonPosition(x, y) {
+        this.closeButton.setPosition(x, y);
     }
 
     changeTitle(newTitle) {

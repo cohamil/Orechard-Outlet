@@ -53,7 +53,14 @@ i18n
           "close": "Close",
           "species_lilac": "Lilac",
           "species_daisy": "Daisy",
-          "species_tulip": "Tulip"
+          "species_tulip": "Tulip",
+          "change_language": "Change Language",
+          "select_desired_language": "Select Desired Language",
+          "show_save_slots": "Show Save Slots",
+          "choose_save_slot": "Choose Save Slot",
+          "display_save_slot_text": "{{saveSlotDisplayText}}",
+          "load": "Load",
+          "clear_save_slots": "Clear Save Slots",
         }
       },
       zh: {
@@ -104,7 +111,14 @@ i18n
           "close": "关闭",
           "species_lilac": "丁香",
           "species_daisy": "雏菊",
-          "species_tulip": "郁金香"
+          "species_tulip": "郁金香",
+          "change_language": "更改语言",
+          "select_desired_language": "选择所需的语言",
+          "show_save_slots": "显示保存插槽",
+          "choose_save_slot": "选择保存插槽",
+          "display_save_slot_text": "{{saveSlotDisplayText}}",
+          "load": "加载",
+          "clear_save_slots": "清除保存插槽",
         }
       },
       he: {
@@ -155,7 +169,14 @@ i18n
           "close": "סגור",
           "species_lilac": "לילך",
           "species_daisy": "חיננית",
-          "species_tulip": "צבעוני"
+          "species_tulip": "צבעוני",
+          "change_language": "שנה שפה",
+          "select_desired_language": "בחר שפה מועדפת",
+          "show_save_slots": "הצג חריצי שמירה",
+          "choose_save_slot": "בחר חריץ שמירה",
+          "display_save_slot_text": "{{saveSlotDisplayText}}",
+          "load": "טען",
+          "clear_save_slots": "נקה חריצי שמירה",
         }
       }
     },
