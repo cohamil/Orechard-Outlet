@@ -3,22 +3,38 @@ import i18n from './i18n'; // Import i18next
 
 // This manager handles all plant-related operations
 export class PlantsManager {
-    constructor(maxSpeciesLength, scene) {
-        this.maxSpeciesLength = maxSpeciesLength; // max species length
+    constructor(scene) {
         this.scene = scene; // Reference to the Phaser scene
         this.plantSpecies = []; // Array to hold plant species
+        this.defaultGrowthCondition = { requiredSun: 1, requiredWater: 1, requiredNeighbors: -1 }
+        this.MAX_GROWTH_CONDITIONS = 5;
     }
 
     // Create a new plant species
-    createSpecies(species, conditions) {
-        if (species.length !== this.maxSpeciesLength) {
-            console.error("Incorrect species format. Not creating plant.\nGiven Species: " + species);
+    createSpecies(species, maxLevel, conditions) {
+        // Ensure species is a valid plant type
+        if (!Object.values(SpeciesName).includes(species)) {
+            console.error("Incorrect species name. Not creating plant.\nGiven Species: " + species);
             return;
         }
+        const speciesHex = Object.entries(SpeciesName).find(([key, value]) => value == species)[0];
+
+        // Ensure there are enough Growth Conditions
+        if (maxLevel > conditions.length){
+            // Fill conditions with defaults if not enough
+            console.warn("Plant max level too high! Adding missing conditions.\nGiven Species: " + species);
+            const previousConditionsLength = conditions.length;
+            for (let i = previousConditionsLength; i < maxLevel; i+=1){
+                conditions.push(this.defaultGrowthCondition);
+            }
+        }else if (maxLevel < conditions.length){
+            console.warn("Too many Growth Conditions Given, increasing Plant's Max Level.\nGiven Species: " + species);
+            maxLevel = conditions.length;
+        }
         const newPlant = {
-            species,
+            species: speciesHex,
             growthLevel: 0,
-            maxGrowthLevel: 3,
+            maxGrowthLevel: maxLevel,
             growthConditions: conditions,
         };
         this.plantSpecies.push(newPlant);
@@ -150,11 +166,18 @@ export class PlantsManager {
         }
         return numAdjacentPlants;
     }
+
+    getMaxConditions(){
+        return this.MAX_GROWTH_CONDITIONS;
+    }
 }
 
-// Plant species names
+// Plant species names map. MUST use a hex code to define color
 export const SpeciesName = {
     "0xDA70D6": "lilac",
     "0x4CBB17": "daisy",
     "0xF28C28": "tulip",
 }
+
+
+// SAMPLE CODE TO CREATE A PLANT
