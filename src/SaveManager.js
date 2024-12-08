@@ -75,12 +75,14 @@ export class SaveManager extends Phaser.Data.DataManager {
     }
 
     showSaveSlots(scene) {
+        // Save slot popup
         const saveSlotPopup = new PopupWindow(scene, scene.cameras.main.width / 2, scene.cameras.main.height / 2, 900, 700, i18n.t('choose_save_slot'), "", {
             fontFamily: 'Arial Black', fontSize: 24, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         });
         saveSlotPopup.changeCloseButtonPosition(-200, 300);
 
+        // Create save slots
         for (let i = 1; i <= this.numSaveSlots; i++) {
             this.createSaveSlot(scene, saveSlotPopup, -400, -275 + (175 * (i - 1)), 600, 150, i);
         }
@@ -105,6 +107,7 @@ export class SaveManager extends Phaser.Data.DataManager {
             });
 
         saveSlotPopup.add(clearSaveSlotsButton);
+        // Text for clear save slots button
         clearSaveSlotsButton.text = scene.add.text(200, 300, i18n.t('clear_save_slots'), {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
@@ -112,12 +115,13 @@ export class SaveManager extends Phaser.Data.DataManager {
         saveSlotPopup.add(clearSaveSlotsButton.text);
     }
 
+    // Create a save slot rectangle and load button
     createSaveSlot(scene, saveSlotPopup, x, y, width, height, slotNumber) {
         const isLoaded = localStorage.getItem(this.saveSlotPrefix + slotNumber) ? true : false;
         
         const saveSlotColor = isLoaded ? saveSlotColors.loaded : saveSlotColors.empty;
-        const saveSlotDisplayText = isLoaded ? "Override Slot " + slotNumber : "Save Slot " + slotNumber;
 
+        // Save slot rectangle
         const saveSlot = scene.add.rectangle(x, y, width, height, saveSlotColor)
             .setOrigin(0)
             .setInteractive()
@@ -135,12 +139,14 @@ export class SaveManager extends Phaser.Data.DataManager {
                 saveSlot.setFillStyle(0x00ffff);
             });
         saveSlotPopup.add(saveSlot);
-        saveSlot.text = scene.add.text(-100, y + 75, i18n.t('display_save_slot_text', {saveSlotDisplayText}), {
+        saveSlot.text = scene.add.text(-100, y + 75, 
+            isLoaded ? i18n.t('overwrite_slot_text', {slotNumber}) : i18n.t('save_slot_text', {slotNumber}), {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }).setOrigin(0.5);
         saveSlotPopup.add(saveSlot.text);
 
+        // Load button for save slot
         if (isLoaded) {
             const loadButton = scene.add.rectangle(x + 625, y, 200, height, 0xffff00)
                 .setOrigin(0)
@@ -164,6 +170,7 @@ export class SaveManager extends Phaser.Data.DataManager {
         }
     }
 
+    // Clear all save slots
     clearSaveSlots() {
         for (let i = 1; i <= this.numSaveSlots; i++) {
             localStorage.removeItem(this.saveSlotPrefix + i);

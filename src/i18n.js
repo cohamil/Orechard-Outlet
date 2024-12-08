@@ -58,7 +58,8 @@ i18n
           "select_desired_language": "Select Desired Language",
           "show_save_slots": "Show Save Slots",
           "choose_save_slot": "Choose Save Slot",
-          "display_save_slot_text": "{{saveSlotDisplayText}}",
+          "overwrite_slot_text": "Overwrite Slot {{slotNumber}}",
+          "save_slot_text": "Save Slot {{slotNumber}}",
           "load": "Load",
           "clear_save_slots": "Clear Save Slots",
         }
@@ -116,7 +117,8 @@ i18n
           "select_desired_language": "选择所需的语言",
           "show_save_slots": "显示保存插槽",
           "choose_save_slot": "选择保存插槽",
-          "display_save_slot_text": "{{saveSlotDisplayText}}",
+          "overwrite_slot_text": "覆盖插槽{{slotNumber}}",
+          "save_slot_text": "保存插槽{{slotNumber}}",
           "load": "加载",
           "clear_save_slots": "清除保存插槽",
         }
@@ -174,7 +176,8 @@ i18n
           "select_desired_language": "בחר שפה מועדפת",
           "show_save_slots": "הצג חריצי שמירה",
           "choose_save_slot": "בחר חריץ שמירה",
-          "display_save_slot_text": "{{saveSlotDisplayText}}",
+          "overwrite_slot_text": "החלף חריץ {{slotNumber}}",
+          "save_slot_text": "שמור בחריץ {{slotNumber}}",
           "load": "טען",
           "clear_save_slots": "נקה חריצי שמירה",
         }

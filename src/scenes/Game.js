@@ -111,8 +111,8 @@ export class Game extends Scene {
         }
 
         // Add key listeners for save/load
-        const loadKey = this.input.keyboard.addKey('L');
-        loadKey.on('down', () => saveManager.showSaveSlots(), this);
+        // const loadKey = this.input.keyboard.addKey('L');
+        // loadKey.on('down', () => saveManager.showSaveSlots(), this);
 
         // Add a key listener for advancing turns
         const turnKey = this.input.keyboard.addKey('T');
