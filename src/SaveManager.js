@@ -39,6 +39,7 @@ export class SaveManager extends Phaser.Data.DataManager {
             numMaxedPlants: this.game.getNumMaxedPlants(),
             undoable: JSON.parse(JSON.stringify(this.game.getUndoable())),
             redoable: JSON.parse(JSON.stringify(this.game.getRedoable())),
+            harvestCount: JSON.parse(JSON.stringify(this.game.getHarvestCount())),
             gameSettings: {
                 ...this.game.getGameSettings(),
                 weatherSchedule: this.game.getWeatherSchedule() // Ensure schedule is saved

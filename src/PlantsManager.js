@@ -77,7 +77,6 @@ export class PlantsManager {
         // Add the harvested plant to the harvestedPlants array
         if (cellResource.plant.growthLevel === cellResource.plant.maxGrowthLevel) {
             this.incrementHarvestCount(SpeciesName[cellResource.plant.species]);
-            gameManager.refreshUIElements();
         }
 
         cellResource.plant = null;
@@ -89,6 +88,24 @@ export class PlantsManager {
             this.harvestCount[species] = 0;
         }
         this.harvestCount[species] += 1;
+        gameManager.refreshUIElements();
+    }
+
+    // Decrement the harvest count for a species
+    decrementHarvestCount(species) {
+        if (!this.harvestCount[species]) {
+            this.harvestCount[species] = 0;
+        }
+        this.harvestCount[species] -= 1;
+        gameManager.refreshUIElements();
+    }
+
+    getHarvestCountArray() {
+        return this.harvestCount;
+    }
+    
+    setHarvestCountArray(harvestCount) {
+        this.harvestCount = harvestCount;
     }
 
     // Get the harvest count for a species
