@@ -1,7 +1,9 @@
 const CACHE_NAME = 'game-cache-v1';
 const urlsToCache = [
   '/',
-  '/index.html'
+  '/index.html',
+  '/style.css',
+  '/bundle.min.js',
   // Add other assets here if needed
 ];
 
