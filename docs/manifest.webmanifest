@@ -1,0 +1,11 @@
+{
+    "name": "My Cool Offline Mobile Game",
+    "short_name": "MyCool",
+    "description": "This is a tiny example of PWAs showing how to make a lightweight offline mobile game.",
+    "start_url": "/index.html",
+    "display": "fullscreen",
+    "icons": [{
+      "sizes": "180x180",
+      "src": "/assets/bronzeicon180.png"
+    }]
+  }
