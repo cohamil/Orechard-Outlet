@@ -14,6 +14,10 @@ export class PlantsManager {
         this.MAX_GROWTH_CONDITIONS = 5;
     }
 
+    getPlantSpecies() {
+        return this.plantSpecies;
+    }
+
     // Create a new plant species
     createSpecies(species, maxLevel, conditions) {
         // Ensure species is a valid plant type
@@ -76,27 +80,27 @@ export class PlantsManager {
 
         // Add the harvested plant to the harvestedPlants array
         if (cellResource.plant.growthLevel === cellResource.plant.maxGrowthLevel) {
-            this.incrementHarvestCount(SpeciesName[cellResource.plant.species]);
+            this.incrementHarvestCount(SpeciesName[cellResource.plant.species], 1);
         }
 
         cellResource.plant = null;
     }
 
     // Increment the harvest count for a species
-    incrementHarvestCount(species) {
+    incrementHarvestCount(species, amount = 1) {
         if (!this.harvestCount[species]) {
             this.harvestCount[species] = 0;
         }
-        this.harvestCount[species] += 1;
+        this.harvestCount[species] += amount;
         gameManager.refreshUIElements();
     }
 
     // Decrement the harvest count for a species
-    decrementHarvestCount(species) {
+    decrementHarvestCount(species, amount = 1) {
         if (!this.harvestCount[species]) {
             this.harvestCount[species] = 0;
         }
-        this.harvestCount[species] -= 1;
+        this.harvestCount[species] -= amount;
         gameManager.refreshUIElements();
     }
 
