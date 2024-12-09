@@ -171,7 +171,7 @@ export class Game extends Scene {
         this.gridSize = this.gameSettings.gridSize;
         this.sunProbability = this.gameSettings.defaultSunProbability;
         this.waterProbability = this.gameSettings.defaultWaterProbability;
-        gameManager.setPlantsWinCon(this.gameSettings.plantsToMax);
+        gameManager.setOrdersCompletedWinCon(this.gameSettings.ordersToComplete);
 
         // Load state
         this.playerPosition = { ...savedState.playerPosition };
@@ -381,7 +381,7 @@ export class Game extends Scene {
     setDefaultSettings() {
         this.gameSettings = {
             gridSize: 10,
-            plantsToMax: 4,
+            ordersToComplete: 5,
             defaultSunProbability: 0.4,
             defaultWaterProbability: 0.4,
             weatherSchedule: []
