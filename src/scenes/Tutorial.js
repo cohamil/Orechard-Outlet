@@ -38,8 +38,7 @@ export class Tutorial extends Scene {
 
         // Goal tutorial
         const goalTitle = i18n.t('goal_title');
-        const winCondition = gameManager.getPlantsWinCon();
-        const goalContent = i18n.t('goal_content', { winCondition });
+        const goalContent = i18n.t('goal_content');
 
         const goalButton = new TextButton(this, 100, 250, i18n.t('goal'), {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',

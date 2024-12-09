@@ -106,6 +106,24 @@ export class PlantsManager {
     
     setHarvestCountArray(harvestCount) {
         this.harvestCount = harvestCount;
+        console.log('Harvest count set:', harvestCount); // Debugging log
+    
+        // Update the inventory text directly
+        if (gameManager.UIElements && gameManager.UIElements.inventoryDisplay) {
+            const inventoryTextElement = gameManager.UIElements.inventoryDisplay.list[1]; // Assuming the text element is the second child
+            if (inventoryTextElement) {
+                let displayString = "";
+                for (const [species, count] of Object.entries(this.harvestCount)) {
+                    displayString += `${count}\n\n`;
+                }
+                inventoryTextElement.setText(displayString);
+                console.log('Inventory text updated:', displayString); // Debugging log
+            } else {
+                console.error('Inventory text element not found');
+            }
+        } else {
+            console.error('UIElements or inventoryDisplay is not defined');
+        }
     }
 
     // Get the harvest count for a species
