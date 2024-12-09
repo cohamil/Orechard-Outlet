@@ -8,11 +8,18 @@ class GameManager extends Phaser.Data.DataManager {
         this.autoSaveKey = 'game_autosave';
         this.confirmLoad = null;
         this.player = null;
-        this.UIElements = {
-            forecastText: null,
-            settingsButton: null,
-            tutorialButton: null,
-        };
+        this.UIElements = null;
+        this.game = null;
+        this.gameSet = false;
+    }
+
+    setGame(game) {
+        this.game = game;
+        this.gameSet = true;
+    }
+
+    getGame() {
+        return this.gameSet ? this.game : null;
     }
 
     setPlaying(value) {
@@ -49,6 +56,15 @@ class GameManager extends Phaser.Data.DataManager {
 
     setUIElements(UIElements) {
         this.UIElements = UIElements;
+    }
+
+    refreshUIElements() {
+        Object.values(this.UIElements).forEach(element => {
+            if (element) {
+                element.visible = false;
+            }
+        });
+        this.game.createUIElements();
     }
 
     drawGrid(scene, gridSize, cellSize, grid, plantsManager) {

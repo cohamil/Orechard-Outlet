@@ -67,6 +67,7 @@ i18n
           "next_turn": "Next Turn",
           "move_mode": "Move\nMode",
           "plant_mode": "Plant\nMode",
+          "inventory": "Inventory:",
         }
       },
       zh: {
@@ -131,6 +132,7 @@ i18n
           "next_turn": "下一回合",
           "move_mode": "移动\n模式",
           "plant_mode": "种植\n模式",
+          "inventory": "库存：",
         }
       },
       he: {
@@ -195,6 +197,7 @@ i18n
           "next_turn": "תור הבא",
           "move_mode": "מצב\nתנועה",
           "plant_mode": "מצב\nצמח",
+          "inventory": "מלאי:",
         }
       }
     },
