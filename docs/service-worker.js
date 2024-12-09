@@ -1,39 +1,44 @@
-const CACHE_NAME = 'game-cache-v1';
-const urlsToCache = [
-  'index.html',
-  'index.js',
-  'manifest.webmanifest'
-  // Include other assets you want to cache, like scripts and images
+const cacheName = 'news-v1';
+const staticAssets = [
+  './',
+  './index.html',
 ];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('Opened cache');
-      return cache.addAll(urlsToCache);
-    })
-  );
+self.addEventListener('install', async e => {
+  const cache = await caches.open(cacheName);
+  await cache.addAll(staticAssets);
+  return self.skipWaiting();
 });
 
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
-  );
+self.addEventListener('activate', e => {
+  self.clients.claim();
 });
 
-self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
+self.addEventListener('fetch', async e => {
+  const req = e.request;
+  const url = new URL(req.url);
+
+  if (url.origin === location.origin) {
+    e.respondWith(cacheFirst(req));
+  } else {
+    e.respondWith(networkAndCache(req));
+  }
 });
+
+async function cacheFirst(req) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(req);
+  return cached || fetch(req);
+}
+
+async function networkAndCache(req) {
+  const cache = await caches.open(cacheName);
+  try {
+    const fresh = await fetch(req);
+    await cache.put(req, fresh.clone());
+    return fresh;
+  } catch (e) {
+    const cached = await cache.match(req);
+    return cached;
+  }
+}
