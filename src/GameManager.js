@@ -1,6 +1,6 @@
 import 'phaser';
 
-import { SpeciesName } from './PlantsManager';
+import { plantsManager , SpeciesName } from './PlantsManager';
 
 class GameManager extends Phaser.Data.DataManager {
     constructor() {
@@ -14,7 +14,11 @@ class GameManager extends Phaser.Data.DataManager {
         this.game = null;
         this.gameSet = false;
         this.currentOrder = null;
-        this.currentOrderComplete = true;
+        this.grid = null;
+    }
+
+    getGrid() {
+        return this.grid;
     }
 
     setGame(game) {
@@ -64,33 +68,30 @@ class GameManager extends Phaser.Data.DataManager {
 
     setCurrentOrder(order) {
         this.currentOrder = order;
-        console.log('Order set:', this.currentOrder); // Debugging log
+        //console.log('Order set:', this.currentOrder); // Debugging log
 
         // Update the shop text directly
         if (gameManager.UIElements && gameManager.UIElements.shopDisplay) {
-            const shopTextElement = gameManager.UIElements.shopDisplay.list[1]; // Assuming the text element is the second child
+            const shopTextElement = gameManager.UIElements.shopDisplay.list[2]; // Assuming the text element is the second child
             if (shopTextElement) {
                 let displayString = `${this.currentOrder.species} ${this.currentOrder.collectionLevel} `
                 shopTextElement.setText(displayString);
-                console.log('shop text updated:', displayString); // Debugging log
+                //console.log('shop text updated:', displayString); // Debugging log
             } 
         }
     }
 
     undoOrder(order) {
         this.currentOrder = order;
-        this.currentOrderComplete = false;
     }
 
     redoOrder(order) {
         this.currentOrder = order;
-        this.currentOrderComplete = false;
     }
 
     submitOrder(harvestCount) {
         const order = this.currentOrder;
         if (harvestCount[order.species] >= order.collectionLevel) {
-            this.currentOrderComplete = true;
 
             this.generateNewOrder()
             this.refreshUIElements();
@@ -111,17 +112,11 @@ class GameManager extends Phaser.Data.DataManager {
             species: species,
             collectionLevel: collectionLevel
         };
-
-        this.currentOrderComplete = false;
         this.setCurrentOrder(order);
     }
 
     getOrderDisplay() {
-        // if (this.currentOrderComplete) {
-        //     this.generateNewOrder();
-        // }
-
-        const orderDisplay = `${this.currentOrder.species} ${this.currentOrder.collectionLevel} `;
+        const orderDisplay = `${this.currentOrder.collectionLevel} `;
 
         return orderDisplay;
     }
@@ -139,9 +134,11 @@ class GameManager extends Phaser.Data.DataManager {
         this.game.createUIElements();
     }
 
-    drawGrid(scene, gridSize, cellSize, grid, plantsManager) {
+
+    drawGrid(scene, gridSize, cellSize, grid) {
         const startX = (scene.cameras.main.width - gridSize * cellSize) / 2;
         const startY = (scene.cameras.main.height - gridSize * cellSize) / 2;
+        //.log(startX, startY);
 
         // Destroy existing grid elements, but keep the player and UI elements
         scene.children.list
@@ -196,7 +193,8 @@ class GameManager extends Phaser.Data.DataManager {
                 }
             }
         }
-        plantsManager.drawPlants(cellSize, startX, startY, cellColor, grid);
+        plantsManager.drawPlants(cellSize, startX, startY, grid);
+        this.grid = grid;
     }
 
     // Helper method to get water color based on moisture level

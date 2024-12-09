@@ -51,9 +51,9 @@ i18n
           "growth_level": "Growth Level",
           "any": "Any",
           "close": "Close",
-          "species_lilac": "Lilac",
-          "species_daisy": "Daisy",
-          "species_tulip": "Tulip",
+          "species_bronze": "Bronze",
+          "species_gold": "Gold",
+          "species_diamond": "Diamond",
           "change_language": "Change Language",
           "select_desired_language": "Select Desired Language",
           "show_save_slots": "Show Save Slots",
@@ -118,9 +118,9 @@ i18n
           "growth_level": "生长水平",
           "any": "任何",
           "close": "关闭",
-          "species_lilac": "丁香",
-          "species_daisy": "雏菊",
-          "species_tulip": "郁金香",
+          "species_bronze": "青铜",
+          "species_gold": "金子",
+          "species_diamond": "钻石",
           "change_language": "更改语言",
           "select_desired_language": "选择所需的语言",
           "show_save_slots": "显示保存插槽",
@@ -185,9 +185,9 @@ i18n
           "growth_level": "רמת צמיחה",
           "any": "כל",
           "close": "סגור",
-          "species_lilac": "לילך",
-          "species_daisy": "חיננית",
-          "species_tulip": "צבעוני",
+          "species_bronze": "בְּרוֹנזָה",
+          "species_gold": "זָהָב",
+          "species_diamond": "יַהֲלוֹם",
           "change_language": "שנה שפה",
           "select_desired_language": "בחר שפה מועדפת",
           "show_save_slots": "הצג חריצי שמירה",
@@ -216,7 +216,7 @@ i18n
     if (err) {
       console.error('i18n initialization error:', err);
     } else {
-      console.log('i18n initialized');
+      //console.log('i18n initialized');
     }
   });
 
