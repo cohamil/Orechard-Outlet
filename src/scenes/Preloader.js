@@ -35,9 +35,9 @@ export class Preloader extends Scene
         const spriteSheetConfig = { frameWidth: 80, frameHeight: 80 , pixelArt: true}
 
         this.load.image('logo', 'logo.png');
-        this.load.spritesheet('lilac', 'bronze.png', spriteSheetConfig);
-        this.load.spritesheet('daisy', 'gold.png', spriteSheetConfig);
-        this.load.spritesheet('tulip', 'diamond.png', spriteSheetConfig);
+        this.load.spritesheet('bronze', 'bronze.png', spriteSheetConfig);
+        this.load.spritesheet('gold', 'gold.png', spriteSheetConfig);
+        this.load.spritesheet('diamond', 'diamond.png', spriteSheetConfig);
         this.load.spritesheet('playerAnimations', 'player.png', spriteSheetConfig);
     }
 
