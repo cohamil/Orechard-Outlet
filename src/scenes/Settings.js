@@ -77,6 +77,9 @@ export class Settings extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             i18n.changeLanguage('en').then(() => {
+                if (gameManager.getGame()) {
+                    gameManager.refreshUIElements();
+                }
                 this.scene.restart();
             });
         });
@@ -87,6 +90,9 @@ export class Settings extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             i18n.changeLanguage('zh').then(() => {
+                if (gameManager.getGame()) {
+                    gameManager.refreshUIElements();
+                }
                 this.scene.restart();
             });
         });
@@ -97,6 +103,9 @@ export class Settings extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             i18n.changeLanguage('he').then(() => {
+                if (gameManager.getGame()) {
+                    gameManager.refreshUIElements();
+                }
                 this.scene.restart();
             });
         });

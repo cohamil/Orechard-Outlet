@@ -1,11 +1,14 @@
 import { PopupWindow } from './popup-window';
 import i18n from './i18n'; // Import i18next
+import { gameManager } from './GameManager';
 
 // This manager handles all plant-related operations
 export class PlantsManager {
     constructor(scene) {
         this.scene = scene; // Reference to the Phaser scene
         this.plantSpecies = []; // Array to hold plant species
+        this.harvestCount = {}; // Object to store the count of harvested plants for each species
+
         this.defaultGrowthCondition = { requiredSun: 1, requiredWater: 1, requiredNeighbors: -1 }
         this.MAX_GROWTH_CONDITIONS = 5;
     }
@@ -38,6 +41,7 @@ export class PlantsManager {
             growthConditions: conditions,
         };
         this.plantSpecies.push(newPlant);
+        this.harvestCount[SpeciesName[speciesHex]] = 0;
     }
 
     // Interact with a plant in the given grid cell
@@ -68,7 +72,36 @@ export class PlantsManager {
     // Harvest a plant from a specific cell
     harvestPlant(cell, grid) {
         const cellResource = grid[cell.row][cell.col];
+
+        // Add the harvested plant to the harvestedPlants array
+        if (cellResource.plant.growthLevel === cellResource.plant.maxGrowthLevel) {
+            this.incrementHarvestCount(SpeciesName[cellResource.plant.species]);
+            gameManager.refreshUIElements();
+        }
+
         cellResource.plant = null;
+    }
+
+    // Increment the harvest count for a species
+    incrementHarvestCount(species) {
+        if (!this.harvestCount[species]) {
+            this.harvestCount[species] = 0;
+        }
+        this.harvestCount[species] += 1;
+    }
+
+    // Get the harvest count for a species
+    getHarvestCount(species) {
+        return this.harvestCount[species] || 0;
+    }
+
+    getHarvestedPlantsDisplay() {
+        // Create string with number of each species harvested
+        let displayString = "";
+        for (const [species, count] of Object.entries(this.harvestCount)) {
+            displayString += `${count}\n\n`;
+        }
+        return displayString;
     }
 
     // Update plant growth mechanics
