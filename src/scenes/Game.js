@@ -266,6 +266,8 @@ export class Game extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             if (this.playerPosition.row > 0) {
+                this.player.setFlipX(false);
+                this.player.setFrame(19);
                 if (this.plantModeActive) {
                     this.undoable.push(this.grid);
                     this.redoable = [];
@@ -285,6 +287,8 @@ export class Game extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             if (this.playerPosition.row < this.gridSize - 1) {
+                this.player.setFlipX(false);
+                this.player.setFrame(11);
                 if (this.plantModeActive) {
                     this.undoable.push(this.grid);
                     this.redoable = [];
@@ -305,6 +309,8 @@ export class Game extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             if (this.playerPosition.col > 0) {
+                this.player.setFlipX(true);
+                this.player.setFrame(3);
                 if (this.plantModeActive) {
                     this.undoable.push(this.grid);
                     this.redoable = [];
@@ -324,6 +330,8 @@ export class Game extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             if (this.playerPosition.col < this.gridSize - 1) {
+                this.player.setFlipX(false);
+                this.player.setFrame(3);
                 if (this.plantModeActive) {
                     this.undoable.push(this.grid);
                     this.redoable = [];
@@ -570,14 +578,14 @@ export class Game extends Scene {
     }
 
     handlePlayerActions() {
-        const movementDirection = this.playerActions.checkForPlayerMovement(this.gridSize, this.playerPosition);
+        const movementDirection = this.playerActions.checkForPlayerMovement(this.gridSize, this.playerPosition, this.player);
         if (movementDirection) {
             this.undoable.push(this.playerPosition);
             this.redoable = [];
             this.movePlayerTo(movementDirection);
         }
 
-        const plantInteractionDirection = this.playerActions.checkforPlantInteraction(this.gridSize, this.playerPosition, this.grid);
+        const plantInteractionDirection = this.playerActions.checkforPlantInteraction(this.gridSize, this.playerPosition, this.player);
         if (plantInteractionDirection) {
             this.undoable.push(this.grid);
             this.redoable = [];
