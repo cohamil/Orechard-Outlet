@@ -8,6 +8,7 @@ export class PlantsManager {
         this.scene = scene; // Reference to the Phaser scene
         this.plantSpecies = []; // Array to hold plant species
         this.harvestCount = {}; // Object to store the count of harvested plants for each species
+        this.plantedSprites = []; // Array to hold drawn plant Sprites
 
         this.defaultGrowthCondition = { requiredSun: 1, requiredWater: 1, requiredNeighbors: -1 }
         this.MAX_GROWTH_CONDITIONS = 5;
@@ -126,20 +127,28 @@ export class PlantsManager {
 
     // Draw plants on the grid
     drawPlants(cellSize, startX, startY, cellColor, grid) {
+        // Remove previously drawn sprites
+        this.plantedSprites.forEach(sprite => {
+            sprite.destroy();
+        })
+        this.plantedSprites = [];
         for (let row = 0; row < grid.length; row++) {
             for (let col = 0; col < grid[row].length; col++) {
                 const cellResource = grid[row][col];
                 const plant = cellResource.plant;
                 if (plant) {
                     const plantColor = plant.species;
-                    const plantSize = (cellSize * 0.4) * ((1 + plant.growthLevel) / plant.maxGrowthLevel); // Scale plant size based on growth
+                    const plantSize = (80/cellSize) * ((4) / (1 + plant.maxGrowthLevel)); // Scale plant size based on growth
                     const x = startX + col * cellSize + (cellSize - plantSize) / 2;
                     const y = startY + row * cellSize + (cellSize - plantSize) / 2;
                     // Draw the plant
-                    const plantRect = this.scene.add
+                    const numSprites = this.scene.textures.get(SpeciesName[plantColor]).getFrameNames().length;
+                    const newSprite = this.scene.add.sprite(x, y, SpeciesName[plantColor], Math.min(plant.growthLevel,numSprites-1)).setOrigin(0.5,0.5).setScale(cellSize/80);
+                    this.plantedSprites.push(newSprite);
+                    /*const plantRect = this.scene.add
                         .rectangle(x, y, plantSize, plantSize, parseInt(plantColor))
                         .setOrigin(0)
-                        .setStrokeStyle(1, 0x000000);
+                        .setStrokeStyle(1, 0x000000);*/
                     // Plant interactivity: Add a popup window
                     let growthRequirementString;
                     if (plant.growthLevel === plant.maxGrowthLevel) {

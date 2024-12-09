@@ -50,7 +50,6 @@ export class Game extends Scene {
             downButton: null,
             leftButton: null,
             rightButton: null,
-            inventoryDisplay: null,
         };
     }
 
@@ -60,8 +59,6 @@ export class Game extends Scene {
 
     create() {
         this.cameras.main.setBackgroundColor(0x87ceeb);
-
-        gameManager.setGame(this);
 
         this.playerActions = new PlayerActions(this);
 
@@ -333,17 +330,6 @@ export class Game extends Scene {
                 }
             }
         });
-
-        // Create inventory display
-        this.UIElements.inventoryDisplay = this.add.container(0, 0);
-        this.UIElements.inventoryDisplay.add(this.add.text(840, 425, i18n.t('inventory'), {
-            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 6
-        }));
-        this.UIElements.inventoryDisplay.add(this.add.text(950, 475, this.plantsManager.getHarvestedPlantsDisplay(), {
-            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 6
-        }));
 
         gameManager.setUIElements(this.UIElements);
     }

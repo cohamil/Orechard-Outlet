@@ -25,14 +25,19 @@ export class Preloader extends Scene
             bar.width = 4 + (460 * progress);
 
         });
+
     }
 
     preload ()
     {
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
+        const spriteSheetConfig = { frameWidth: 80, frameHeight: 80 , pixelArt: true}
 
         this.load.image('logo', 'logo.png');
+        this.load.spritesheet('lilac', 'bronze.png', spriteSheetConfig);
+        this.load.spritesheet('daisy', 'gold.png', spriteSheetConfig);
+        this.load.spritesheet('tulip', 'diamond.png', spriteSheetConfig);
     }
 
     create ()
