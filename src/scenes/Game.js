@@ -358,11 +358,29 @@ export class Game extends Scene {
             fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }));
-        this.UIElements.shopDisplay.add(new TextButton(this, 840, 200, i18n.t('submit_order'), {
+        this.UIElements.shopDisplay.add(new TextButton(this, 840, 150, i18n.t('submit_order'), {
             fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
-            console.log("Order submitted.");
+            const completedOrder = gameManager.submitOrder(this.plantsManager.getHarvestCountArray());
+            if (completedOrder) {
+                this.numOrdersCompleted += 1;
+
+                // Check for the win condition
+                if (this.numOrdersCompleted === gameManager.getOrdersCompletedWinCon()) {
+                    this.scene.start('GameOver');
+                    this.playerPosition = { row: 0, col: 0 };
+                    return;
+                }
+
+                this.undoable.push(completedOrder);
+                this.redoable = [];
+                this.plantsManager.decrementHarvestCount(completedOrder.species, completedOrder.collectionLevel);
+                console.log("Orders completed:", this.numOrdersCompleted);
+            }
+            else {
+                console.log("Order not complete.");
+            }
         }));
 
 
@@ -476,12 +494,7 @@ export class Game extends Scene {
                 if (currentCell.plant) {
                     this.plantsManager.updatePlantGrowth({ row: row, col: col }, this.grid);
                 }
-                // Check for the win condition
-                if (this.numOrdersCompleted === gameManager.getOrdersCompletedWinCon()) {
-                    this.scene.start('GameOver');
-                    this.playerPosition = { row: 0, col: 0 };
-                    return;
-                }
+                
                 // Sun mechanics
                 currentCell.sun = Math.random() / this.resourceModifier.sun < this.sunProbability ? 1 : 0;
                 // Water mechanics
@@ -609,14 +622,24 @@ export class Game extends Scene {
                 const plantUpdate = this.checkForUndoPlantDifference(this.grid, action);
                 if (plantUpdate) {
                     if (plantUpdate.growthLevel === plantUpdate.maxGrowthLevel) {
-                        this.plantsManager.decrementHarvestCount(SpeciesName[plantUpdate.species]);   
+                        this.plantsManager.decrementHarvestCount(SpeciesName[plantUpdate.species], 1);   
                     }
                 }
                 
                 this.redoable.push(this.grid);
                 this.grid = action;
                 gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
-            } else { // Otherwise action is a Coordinate
+            }
+            else if (action.species && action.collectionLevel) { // Check if action is an Order
+                console.log("Undoing order:", action);
+                
+                this.numOrdersCompleted -= 1;
+                this.plantsManager.incrementHarvestCount(action.species, action.collectionLevel);
+                this.redoable.push(gameManager.getCurrentOrder());
+                gameManager.undoOrder(action);
+                gameManager.refreshUIElements();
+            }
+            else { // Otherwise action is a Coordinate
                 this.redoable.push(this.playerPosition);
                 this.movePlayerTo(action);
             }
@@ -630,14 +653,25 @@ export class Game extends Scene {
                 const plantUpdate = this.checkForRedoPlantDifference(this.grid, action);
                 if (plantUpdate) {
                     if (plantUpdate.growthLevel === plantUpdate.maxGrowthLevel) {
-                        this.plantsManager.incrementHarvestCount(SpeciesName[plantUpdate.species]);
+                        this.plantsManager.incrementHarvestCount(SpeciesName[plantUpdate.species], 1);
                     }
                 }
                 
                 this.undoable.push(this.grid);
                 this.grid = action;
                 gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
-            } else {
+            } 
+            else if (action.species && action.collectionLevel) {
+                console.log("Redoing order:", action);
+                
+                this.numOrdersCompleted += 1;
+                this.plantsManager.decrementHarvestCount(gameManager.getCurrentOrder().species, gameManager.getCurrentOrder().collectionLevel);
+                this.undoable.push(gameManager.getCurrentOrder());
+                gameManager.redoOrder(action);
+                gameManager.refreshUIElements();
+            }
+
+            else {
                 this.undoable.push(this.playerPosition);
                 this.movePlayerTo(action);
             }

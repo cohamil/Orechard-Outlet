@@ -1,5 +1,7 @@
 import 'phaser';
 
+import { SpeciesName } from './PlantsManager';
+
 class GameManager extends Phaser.Data.DataManager {
     constructor() {
         super(new Phaser.Events.EventEmitter());
@@ -12,6 +14,7 @@ class GameManager extends Phaser.Data.DataManager {
         this.game = null;
         this.gameSet = false;
         this.currentOrder = null;
+        this.currentOrderComplete = true;
     }
 
     setGame(game) {
@@ -63,8 +66,51 @@ class GameManager extends Phaser.Data.DataManager {
         this.currentOrder = order;
     }
 
+    undoOrder(order) {
+        this.currentOrder = order;
+        this.currentOrderComplete = false;
+    }
+
+    redoOrder(order) {
+        this.currentOrder = order;
+        this.currentOrderComplete = false;
+    }
+
+    submitOrder(harvestCount) {
+        const order = this.currentOrder;
+        if (harvestCount[order.species] >= order.collectionLevel) {
+            this.currentOrderComplete = true;
+            this.refreshUIElements();
+            return order;
+        }
+        return false;
+    }
+
+    generateNewOrder() {
+        // Get a random species name from the list of species
+        const speciesNames = Object.values(SpeciesName);
+        const species = speciesNames[Math.floor(Math.random() * speciesNames.length)];
+
+        // Get a random collection level between 1 and 3
+        const collectionLevel = Math.floor(Math.random() * 3) + 1;
+
+        const order = {
+            species: species,
+            collectionLevel: collectionLevel
+        };
+
+        this.currentOrderComplete = false;
+        this.setCurrentOrder(order);
+    }
+
     getOrderDisplay() {
-        return "test";
+        if (this.currentOrderComplete) {
+            this.generateNewOrder();
+        }
+
+        const orderDisplay = `${this.currentOrder.species} ${this.currentOrder.collectionLevel} `;
+
+        return orderDisplay;
     }
 
     setUIElements(UIElements) {
