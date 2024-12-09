@@ -2,6 +2,7 @@ import 'phaser';
 
 import i18n from './i18n';
 import { PopupWindow } from './popup-window';
+import { gameManager } from './GameManager';
 
 export class SaveManager extends Phaser.Data.DataManager {
     game = null;
@@ -40,7 +41,7 @@ export class SaveManager extends Phaser.Data.DataManager {
             undoable: JSON.parse(JSON.stringify(this.game.getUndoable())),
             redoable: JSON.parse(JSON.stringify(this.game.getRedoable())),
             harvestCount: JSON.parse(JSON.stringify(this.game.getHarvestCount())),
-            currentOrder: this.game.getCurrentOrder(),
+            currentOrder: gameManager.getCurrentOrder(),
             gameSettings: {
                 ...this.game.getGameSettings(),
                 weatherSchedule: this.game.getWeatherSchedule() // Ensure schedule is saved

@@ -474,8 +474,7 @@ export class Game extends Scene {
                 const currentCell = this.grid[row][col];
                 // Plant growth mechanics
                 if (currentCell.plant) {
-                    this.numOrdersCompleted = this.plantsManager.updatePlantGrowth({ row: row, col: col }, this.numOrdersCompleted, this.grid);
-                    //this.plantsManager.updatePlantGrowth({ row: row, col: col }, this.grid);
+                    this.plantsManager.updatePlantGrowth({ row: row, col: col }, this.grid);
                 }
                 // Check for the win condition
                 if (this.numOrdersCompleted === gameManager.getOrdersCompletedWinCon()) {
