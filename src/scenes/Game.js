@@ -3,7 +3,7 @@ import { TextButton } from '../text-button';
 // import { PopupWindow } from '../popup-window'; // Uncomment if needed
 import { parse } from 'yaml';
 import { gameManager } from '../GameManager';
-import { PlantsManager } from '../PlantsManager';
+import { PlantsManager, SpeciesName } from '../PlantsManager';
 import { PlayerActions } from '../PlayerActions';
 import { saveManager } from '../SaveManager';
 import i18n from '../i18n';
@@ -50,6 +50,7 @@ export class Game extends Scene {
             downButton: null,
             leftButton: null,
             rightButton: null,
+            inventoryDisplay: null,
         };
     }
 
@@ -61,6 +62,8 @@ export class Game extends Scene {
         this.cameras.main.setBackgroundColor(0x87ceeb);
 
         this.playerActions = new PlayerActions(this);
+
+        gameManager.setGame(this);
 
         // Create initial plant species (species, maxLevel, conditions)
         this.plantsManager.createSpecies("lilac", this.defaultGrowthConditions.length, this.defaultGrowthConditions);
@@ -174,6 +177,7 @@ export class Game extends Scene {
         this.numMaxedPlants = savedState.numMaxedPlants || 0;
         this.undoable = savedState.undoable || [];
         this.redoable = savedState.redoable || [];
+        this.plantsManager.setHarvestCountArray(savedState.harvestCount);
 
         // Weather after grid
         this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
@@ -330,6 +334,17 @@ export class Game extends Scene {
                 }
             }
         });
+
+        // Create inventory display
+        this.UIElements.inventoryDisplay = this.add.container(0, 0);
+        this.UIElements.inventoryDisplay.add(this.add.text(840, 425, i18n.t('inventory'), {
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }));
+        this.UIElements.inventoryDisplay.add(this.add.text(950, 475, this.plantsManager.getHarvestedPlantsDisplay(), {
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }));
 
         gameManager.setUIElements(this.UIElements);
     }
@@ -558,11 +573,26 @@ export class Game extends Scene {
         gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
     }
 
+    getHarvestCount() {
+        return this.plantsManager.getHarvestCountArray();
+    }
+
+    setHarvestCount(harvestCount) {
+        this.plantsManager.setHarvestCountArray(harvestCount);
+    }
+
     // Handle UNDO and REDO operations
     undo() {
         if (this.undoable.length > 0) {
             const action = this.undoable.pop();
             if (Array.isArray(action)) { // Check if action is a Grid
+                const plantUpdate = this.checkForUndoPlantDifference(this.grid, action);
+                if (plantUpdate) {
+                    if (plantUpdate.growthLevel === plantUpdate.maxGrowthLevel) {
+                        this.plantsManager.decrementHarvestCount(SpeciesName[plantUpdate.species]);   
+                    }
+                }
+                
                 this.redoable.push(this.grid);
                 this.grid = action;
                 gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
@@ -577,6 +607,13 @@ export class Game extends Scene {
         if (this.redoable.length > 0) {
             const action = this.redoable.pop();
             if (Array.isArray(action)) {
+                const plantUpdate = this.checkForRedoPlantDifference(this.grid, action);
+                if (plantUpdate) {
+                    if (plantUpdate.growthLevel === plantUpdate.maxGrowthLevel) {
+                        this.plantsManager.incrementHarvestCount(SpeciesName[plantUpdate.species]);
+                    }
+                }
+                
                 this.undoable.push(this.grid);
                 this.grid = action;
                 gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
@@ -585,6 +622,30 @@ export class Game extends Scene {
                 this.movePlayerTo(action);
             }
         }
+    }
+
+    checkForUndoPlantDifference(curGrid, prevGrid) {
+        for (let row = 0; row < curGrid.length; row++) {
+            for (let col = 0; col < curGrid[row].length; col++) {
+                const prevPlant = prevGrid[row][col].plant;
+                if (!curGrid[row][col].plant && prevPlant) {
+                    return prevPlant ? prevPlant : false;
+                }
+            }
+        }
+        return false;
+    }
+
+    checkForRedoPlantDifference(curGrid, prevGrid) {
+        for (let row = 0; row < curGrid.length; row++) {
+            for (let col = 0; col < curGrid[row].length; col++) {
+                const curPlant = curGrid[row][col].plant;
+                if (curPlant && !prevGrid[row][col].plant) {
+                    return curPlant ? curPlant : false;
+                }
+            }
+        }
+        return false;
     }
 }
 
