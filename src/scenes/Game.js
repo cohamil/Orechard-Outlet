@@ -3,7 +3,7 @@ import { TextButton } from '../text-button';
 // import { PopupWindow } from '../popup-window'; // Uncomment if needed
 import { parse } from 'yaml';
 import { gameManager } from '../GameManager';
-import { PlantsManager, SpeciesName } from '../PlantsManager';
+import { plantsManager, SpeciesName } from '../PlantsManager';
 import { PlayerActions } from '../PlayerActions';
 import { saveManager } from '../SaveManager';
 import i18n from '../i18n';
@@ -19,14 +19,12 @@ export class Game extends Scene {
         this.plantModeActive = false;
 
         // Initialize managers
-        this.plantsManager = new PlantsManager(this);
-        saveManager.initializeSaveManager(this, this.plantsManager.getMaxConditions());
+        saveManager.initializeSaveManager(this, plantsManager.getMaxConditions());
 
         // Default growth conditions for plants
         this.defaultGrowthConditions = [
             { requiredSun: 1, requiredWater: 1, requiredNeighbors: -1 },
-            { requiredSun: 1, requiredWater: 2, requiredNeighbors: -1 },
-            { requiredSun: 1, requiredWater: 2, requiredNeighbors: 0 }
+            { requiredSun: 1, requiredWater: 2, requiredNeighbors: 0 },
         ];
         this.weatherSchedule = { next: () => null, getNext: () => null }; // Initialize
         this.gridSize = 0; // Number of rows and columns
@@ -65,11 +63,12 @@ export class Game extends Scene {
         this.playerActions = new PlayerActions(this);
 
         gameManager.setGame(this);
+        plantsManager.setGame(this);
 
         // Create initial plant species (species, maxLevel, conditions)
-        this.plantsManager.createSpecies("lilac", this.defaultGrowthConditions.length, this.defaultGrowthConditions);
-        this.plantsManager.createSpecies("daisy", this.defaultGrowthConditions.length, this.defaultGrowthConditions);
-        this.plantsManager.createSpecies("tulip", this.defaultGrowthConditions.length, this.defaultGrowthConditions);
+        plantsManager.createSpecies("bronze", this.defaultGrowthConditions.length, this.defaultGrowthConditions);
+        plantsManager.createSpecies("gold", this.defaultGrowthConditions.length, this.defaultGrowthConditions);
+        plantsManager.createSpecies("diamond", this.defaultGrowthConditions.length, this.defaultGrowthConditions);
 
         // Always load YAML settings first
         if (this.cache.text.has('yamlData')) {
@@ -115,7 +114,7 @@ export class Game extends Scene {
             this.movePlayerTo({row: 0, col: 0});
             this.initializeCellResources();
             gameManager.setPlayer(this.player);
-            gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
+            gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid);
         }
 
         // Set up keyboard input
@@ -179,7 +178,7 @@ export class Game extends Scene {
         this.numOrdersCompleted = savedState.numOrdersCompleted || 0;
         this.undoable = savedState.undoable || [];
         this.redoable = savedState.redoable || [];
-        this.plantsManager.setHarvestCountArray(savedState.harvestCount);
+        plantsManager.setHarvestCountArray(savedState.harvestCount);
         gameManager.setCurrentOrder(savedState.currentOrder);
 
         // Weather after grid
@@ -189,7 +188,7 @@ export class Game extends Scene {
         // Visual updates last
         this.createPlayer();
         gameManager.setPlayer(this.player);
-        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
+        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid);
     }
 
     initializeNewGame() {
@@ -198,7 +197,7 @@ export class Game extends Scene {
         this.createPlayer();
         this.numOrdersCompleted = 0;  // Set orders completed to 0
         gameManager.setPlayer(this.player);
-        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
+        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid);
     }
 
     // Create the UI elements for the game scene
@@ -267,6 +266,8 @@ export class Game extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             if (this.playerPosition.row > 0) {
+                this.player.setFlipX(false);
+                this.player.setFrame(19);
                 if (this.plantModeActive) {
                     this.undoable.push(this.grid);
                     this.redoable = [];
@@ -286,6 +287,8 @@ export class Game extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             if (this.playerPosition.row < this.gridSize - 1) {
+                this.player.setFlipX(false);
+                this.player.setFrame(11);
                 if (this.plantModeActive) {
                     this.undoable.push(this.grid);
                     this.redoable = [];
@@ -306,6 +309,8 @@ export class Game extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             if (this.playerPosition.col > 0) {
+                this.player.setFlipX(true);
+                this.player.setFrame(3);
                 if (this.plantModeActive) {
                     this.undoable.push(this.grid);
                     this.redoable = [];
@@ -325,6 +330,8 @@ export class Game extends Scene {
             stroke: '#000000', strokeThickness: 6
         }, () => {
             if (this.playerPosition.col < this.gridSize - 1) {
+                this.player.setFlipX(false);
+                this.player.setFrame(3);
                 if (this.plantModeActive) {
                     this.undoable.push(this.grid);
                     this.redoable = [];
@@ -344,10 +351,14 @@ export class Game extends Scene {
             fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }));
-        this.UIElements.inventoryDisplay.add(this.add.text(950, 475, this.plantsManager.getHarvestedPlantsDisplay(), {
+        this.UIElements.inventoryDisplay.add(this.add.text(950, 475, plantsManager.getHarvestedPlantsDisplay(), {
             fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }));
+        // Display Sprites
+        this.UIElements.inventoryDisplay.add(this.add.sprite(895, 494, 'bronze', 2));
+        this.UIElements.inventoryDisplay.add(this.add.sprite(895, 573, 'gold', 2));
+        this.UIElements.inventoryDisplay.add(this.add.sprite(895, 655, 'diamond', 2));
 
         // Create shop display
         this.UIElements.shopDisplay = this.add.container(0, 0);
@@ -355,7 +366,8 @@ export class Game extends Scene {
             fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }));
-        this.UIElements.shopDisplay.add(this.add.text(840, 50, gameManager.getOrderDisplay(), {
+        this.UIElements.shopDisplay.add(this.add.sprite(895, 69, gameManager.getCurrentOrder().species, 2).setOrigin(0.5))
+        this.UIElements.shopDisplay.add(this.add.text(950, 50, gameManager.getOrderDisplay(), {
             fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }));
@@ -363,7 +375,7 @@ export class Game extends Scene {
             fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }, () => {
-            const completedOrder = gameManager.submitOrder(this.plantsManager.getHarvestCountArray());
+            const completedOrder = gameManager.submitOrder(plantsManager.getHarvestCountArray());
             if (completedOrder) {
                 this.numOrdersCompleted += 1;
 
@@ -376,7 +388,7 @@ export class Game extends Scene {
 
                 this.undoable.push(completedOrder);
                 this.redoable = [];
-                this.plantsManager.decrementHarvestCount(completedOrder.species, completedOrder.collectionLevel);
+                plantsManager.decrementHarvestCount(completedOrder.species, completedOrder.collectionLevel);
                 console.log("Orders completed:", this.numOrdersCompleted);
             }
             else {
@@ -493,7 +505,7 @@ export class Game extends Scene {
                 const currentCell = this.grid[row][col];
                 // Plant growth mechanics
                 if (currentCell.plant) {
-                    this.plantsManager.updatePlantGrowth({ row: row, col: col }, this.grid);
+                    plantsManager.updatePlantGrowth({ row: row, col: col }, this.grid);
                 }
                 
                 // Sun mechanics
@@ -512,7 +524,7 @@ export class Game extends Scene {
 
         // Redraw the grid to reflect new resources
         gameManager.setPlayer(this.player);
-        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
+        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid);
         
         // Auto-save after each turn
         saveManager.saveGame();
@@ -543,10 +555,11 @@ export class Game extends Scene {
         // Place the player at the initial position (row 0, col 0)
         const x = startX + this.playerPosition.col * this.cellSize + this.cellSize / 2;
         const y = startY + this.playerPosition.row * this.cellSize + this.cellSize / 2;
-        this.player = this.add
+        /*this.player = this.add
             .rectangle(x, y, this.cellSize * 0.5, this.cellSize * 0.5, 0xff0000)
             .setOrigin(0.5)
-            .setDepth(10); // Ensure player is drawn on top of grid cells
+            .setDepth(10); // Ensure player is drawn on top of grid cells*/
+        this.player = this.add.sprite(x, y, 'playerAnimations', 11).setOrigin(0.5).setScale(3).setDepth(10);
     }
 
     repositionPlayer() {
@@ -566,14 +579,14 @@ export class Game extends Scene {
     }
 
     handlePlayerActions() {
-        const movementDirection = this.playerActions.checkForPlayerMovement(this.gridSize, this.playerPosition);
+        const movementDirection = this.playerActions.checkForPlayerMovement(this.gridSize, this.playerPosition, this.player);
         if (movementDirection) {
             this.undoable.push(this.playerPosition);
             this.redoable = [];
             this.movePlayerTo(movementDirection);
         }
 
-        const plantInteractionDirection = this.playerActions.checkforPlantInteraction(this.gridSize, this.playerPosition, this.grid);
+        const plantInteractionDirection = this.playerActions.checkforPlantInteraction(this.gridSize, this.playerPosition, this.player);
         if (plantInteractionDirection) {
             this.undoable.push(this.grid);
             this.redoable = [];
@@ -600,19 +613,19 @@ export class Game extends Scene {
 
     // Method to handle plant interaction
     handlePlantInteraction(cell) {
-        this.plantsManager.handlePlantInteraction(cell, this.grid);
+        plantsManager.handlePlantInteraction(cell, this.grid);
         saveManager.saveGame();
         // Redraw the grid to reflect plant changes
         gameManager.setPlayer(this.player);
-        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
+        gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid);
     }
 
     getHarvestCount() {
-        return this.plantsManager.getHarvestCountArray();
+        return plantsManager.getHarvestCountArray();
     }
 
     setHarvestCount(harvestCount) {
-        this.plantsManager.setHarvestCountArray(harvestCount);
+        plantsManager.setHarvestCountArray(harvestCount);
     }
 
     // Handle UNDO and REDO operations
@@ -623,19 +636,19 @@ export class Game extends Scene {
                 const plantUpdate = this.checkForUndoPlantDifference(this.grid, action);
                 if (plantUpdate) {
                     if (plantUpdate.growthLevel === plantUpdate.maxGrowthLevel) {
-                        this.plantsManager.decrementHarvestCount(SpeciesName[plantUpdate.species], 1);   
+                        plantsManager.decrementHarvestCount(SpeciesName[plantUpdate.species], 1);   
                     }
                 }
                 
                 this.redoable.push(this.grid);
                 this.grid = action;
-                gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
+                gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid);
             }
             else if (action.species && action.collectionLevel) { // Check if action is an Order
                 console.log("Undoing order:", action);
                 
                 this.numOrdersCompleted -= 1;
-                this.plantsManager.incrementHarvestCount(action.species, action.collectionLevel);
+                plantsManager.incrementHarvestCount(action.species, action.collectionLevel);
                 this.redoable.push(gameManager.getCurrentOrder());
                 gameManager.undoOrder(action);
                 gameManager.refreshUIElements();
@@ -654,19 +667,19 @@ export class Game extends Scene {
                 const plantUpdate = this.checkForRedoPlantDifference(this.grid, action);
                 if (plantUpdate) {
                     if (plantUpdate.growthLevel === plantUpdate.maxGrowthLevel) {
-                        this.plantsManager.incrementHarvestCount(SpeciesName[plantUpdate.species], 1);
+                        plantsManager.incrementHarvestCount(SpeciesName[plantUpdate.species], 1);
                     }
                 }
                 
                 this.undoable.push(this.grid);
                 this.grid = action;
-                gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
+                gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid);
             } 
             else if (action.species && action.collectionLevel) {
                 console.log("Redoing order:", action);
                 
                 this.numOrdersCompleted += 1;
-                this.plantsManager.decrementHarvestCount(gameManager.getCurrentOrder().species, gameManager.getCurrentOrder().collectionLevel);
+                plantsManager.decrementHarvestCount(gameManager.getCurrentOrder().species, gameManager.getCurrentOrder().collectionLevel);
                 this.undoable.push(gameManager.getCurrentOrder());
                 gameManager.redoOrder(action);
                 gameManager.refreshUIElements();

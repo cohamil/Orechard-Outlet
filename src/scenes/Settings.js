@@ -3,9 +3,11 @@ import { TextButton } from '../text-button';
 import { PopupWindow } from '../popup-window';
 import { gameManager } from '../GameManager';
 import { saveManager } from '../SaveManager';
+import { plantsManager } from '../PlantsManager';
+//import { plantsManager } from '../PlantsManager';
 import i18n from '../i18n';
 
-export class Settings extends Scene {
+export class Settings extends Phaser.Scene {
     constructor() {
         super('Settings');
     }
@@ -79,6 +81,7 @@ export class Settings extends Scene {
             i18n.changeLanguage('en').then(() => {
                 if (gameManager.getGame()) {
                     gameManager.refreshUIElements();
+                    plantsManager.drawPlants(64, 192, 64, gameManager.getGrid());
                 }
                 this.scene.restart();
             });
@@ -92,6 +95,7 @@ export class Settings extends Scene {
             i18n.changeLanguage('zh').then(() => {
                 if (gameManager.getGame()) {
                     gameManager.refreshUIElements();
+                    plantsManager.drawPlants(64, 192, 64, gameManager.getGrid());
                 }
                 this.scene.restart();
             });
@@ -105,6 +109,7 @@ export class Settings extends Scene {
             i18n.changeLanguage('he').then(() => {
                 if (gameManager.getGame()) {
                     gameManager.refreshUIElements();
+                    plantsManager.drawPlants(64, 192, 64, gameManager.getGrid());
                 }
                 this.scene.restart();
             });

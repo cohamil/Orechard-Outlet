@@ -3,15 +3,20 @@ import i18n from './i18n'; // Import i18next
 import { gameManager } from './GameManager';
 
 // This manager handles all plant-related operations
-export class PlantsManager {
-    constructor(scene) {
-        this.scene = scene; // Reference to the Phaser scene
+export class PlantsManager extends Phaser.Data.DataManager {
+    constructor() {
+        super(new Phaser.Events.EventEmitter());
         this.plantSpecies = []; // Array to hold plant species
         this.harvestCount = {}; // Object to store the count of harvested plants for each species
         this.plantedSprites = []; // Array to hold drawn plant Sprites
+        this.game = null;
 
         this.defaultGrowthCondition = { requiredSun: 1, requiredWater: 1, requiredNeighbors: -1 }
         this.MAX_GROWTH_CONDITIONS = 5;
+    }
+
+    setGame(game){
+        this.game = game;
     }
 
     getPlantSpecies() {
@@ -110,7 +115,7 @@ export class PlantsManager {
     
     setHarvestCountArray(harvestCount) {
         this.harvestCount = harvestCount;
-        console.log('Harvest count set:', harvestCount); // Debugging log
+        //console.log('Harvest count set:', harvestCount); // Debugging log
     
         // Update the inventory text directly
         if (gameManager.UIElements && gameManager.UIElements.inventoryDisplay) {
@@ -121,7 +126,7 @@ export class PlantsManager {
                     displayString += `${count}\n\n`;
                 }
                 inventoryTextElement.setText(displayString);
-                console.log('Inventory text updated:', displayString); // Debugging log
+                //console.log('Inventory text updated:', displayString); // Debugging log
             }
         }
     }
@@ -157,7 +162,7 @@ export class PlantsManager {
     }
 
     // Draw plants on the grid
-    drawPlants(cellSize, startX, startY, cellColor, grid) {
+    drawPlants(cellSize, startX, startY, grid) {
         // Remove previously drawn sprites
         this.plantedSprites.forEach(sprite => {
             sprite.destroy();
@@ -173,8 +178,8 @@ export class PlantsManager {
                     const x = startX + col * cellSize + (cellSize - plantSize) / 2;
                     const y = startY + row * cellSize + (cellSize - plantSize) / 2;
                     // Draw the plant
-                    const numSprites = this.scene.textures.get(SpeciesName[plantColor]).getFrameNames().length;
-                    const newSprite = this.scene.add.sprite(x, y, SpeciesName[plantColor], Math.min(plant.growthLevel,numSprites-1)).setOrigin(0.5,0.5).setScale(cellSize/80);
+                    const numSprites = this.game.textures.get(SpeciesName[plantColor]).getFrameNames().length;
+                    const newSprite = this.game.add.sprite(x, y, SpeciesName[plantColor], Math.min(plant.growthLevel,numSprites-1)).setOrigin(0.5,0.5).setScale(cellSize/80);
                     this.plantedSprites.push(newSprite);
                     /*const plantRect = this.scene.add
                         .rectangle(x, y, plantSize, plantSize, parseInt(plantColor))
@@ -190,13 +195,13 @@ export class PlantsManager {
                         growthRequirementString = `${i18n.t('growth_requirements')}:\n${i18n.t('water_level')}: ${condition.requiredWater}\n${i18n.t('sun_level')}: ${condition.requiredSun}\n${i18n.t('number_of_neighbors')}: ${neighborsString}`;
                     }
                     const plantPopup = new PopupWindow(
-                        this.scene,
-                        this.scene.cameras.main.width / 2,
-                        this.scene.cameras.main.height / 2,
+                        this.game,
+                        this.game.cameras.main.width / 2,
+                        this.game.cameras.main.height / 2,
                         700,
                         500,
                         i18n.t('plant_info'),
-                        `${i18n.t('species')}: ${i18n.t('species_' + SpeciesName[plant.species])}\n${i18n.t('max_growth_level')}: ${plant.maxGrowthLevel}\n${i18n.t('growth_level')}: ${plant.growthLevel}\n\n${growthRequirementString}`,
+                        `${i18n.t('species')}: ${i18n.t('species_' + SpeciesName[plant.species])}\n${i18n.t('max_growth_level')}: ${plant.maxGrowthLevel+1}\n${i18n.t('growth_level')}: ${plant.growthLevel+1}\n\n${growthRequirementString}`,
                         {
                             fontFamily: "Arial Black",
                             fontSize: 24,
@@ -207,7 +212,7 @@ export class PlantsManager {
                     );
                     plantPopup.setVisibility(false);
                     // Make the cell containing the plant interactive
-                    this.scene.add.rectangle(x - 27, y - 27, cellSize - 3, cellSize - 3, cellColor)
+                    this.game.add.rectangle(x - 27, y - 27, cellSize - 3, cellSize - 3, '0xFFFFFF')
                         .setOrigin(0)
                         .setAlpha(0.0001)
                         .setInteractive()
@@ -247,10 +252,9 @@ export class PlantsManager {
 
 // Plant species names map. MUST use a hex code to define color
 export const SpeciesName = {
-    "0xDA70D6": "lilac",
-    "0x4CBB17": "daisy",
-    "0xF28C28": "tulip",
+    "0xDA70D6": "bronze",
+    "0x4CBB17": "gold",
+    "0xF28C28": "diamond",
 }
 
-
-// SAMPLE CODE TO CREATE A PLANT
+export const plantsManager = new PlantsManager();
