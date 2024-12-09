@@ -41,7 +41,7 @@ export class SaveManager extends Phaser.Data.DataManager {
             undoable: JSON.parse(JSON.stringify(this.game.getUndoable())),
             redoable: JSON.parse(JSON.stringify(this.game.getRedoable())),
             harvestCount: JSON.parse(JSON.stringify(this.game.getHarvestCount())),
-            currentOrder: gameManager.getCurrentOrder(),
+            currentOrder: JSON.parse(JSON.stringify(gameManager.getCurrentOrder())),
             gameSettings: {
                 ...this.game.getGameSettings(),
                 weatherSchedule: this.game.getWeatherSchedule() // Ensure schedule is saved

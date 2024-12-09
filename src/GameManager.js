@@ -64,6 +64,17 @@ class GameManager extends Phaser.Data.DataManager {
 
     setCurrentOrder(order) {
         this.currentOrder = order;
+        console.log('Order set:', this.currentOrder); // Debugging log
+
+        // Update the shop text directly
+        if (gameManager.UIElements && gameManager.UIElements.shopDisplay) {
+            const shopTextElement = gameManager.UIElements.shopDisplay.list[1]; // Assuming the text element is the second child
+            if (shopTextElement) {
+                let displayString = `${this.currentOrder.species} ${this.currentOrder.collectionLevel} `
+                shopTextElement.setText(displayString);
+                console.log('shop text updated:', displayString); // Debugging log
+            } 
+        }
     }
 
     undoOrder(order) {
@@ -80,6 +91,8 @@ class GameManager extends Phaser.Data.DataManager {
         const order = this.currentOrder;
         if (harvestCount[order.species] >= order.collectionLevel) {
             this.currentOrderComplete = true;
+
+            this.generateNewOrder()
             this.refreshUIElements();
             return order;
         }
@@ -104,9 +117,9 @@ class GameManager extends Phaser.Data.DataManager {
     }
 
     getOrderDisplay() {
-        if (this.currentOrderComplete) {
-            this.generateNewOrder();
-        }
+        // if (this.currentOrderComplete) {
+        //     this.generateNewOrder();
+        // }
 
         const orderDisplay = `${this.currentOrder.species} ${this.currentOrder.collectionLevel} `;
 

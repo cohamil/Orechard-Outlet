@@ -122,11 +122,7 @@ export class PlantsManager {
                 }
                 inventoryTextElement.setText(displayString);
                 console.log('Inventory text updated:', displayString); // Debugging log
-            } else {
-                console.error('Inventory text element not found');
             }
-        } else {
-            console.error('UIElements or inventoryDisplay is not defined');
         }
     }
 

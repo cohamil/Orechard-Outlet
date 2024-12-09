@@ -137,6 +137,7 @@ export class Game extends Scene {
         // Reset Win Condition if not loaded
         if (!autoSaveLoaded) {
             this.numOrdersCompleted = 0;
+            gameManager.generateNewOrder();
         }
 
         // Create UI elements
