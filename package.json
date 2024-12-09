@@ -1,37 +1,44 @@
 {
-    "name": "template-esbuild-ts",
-    "description": "A Phaser 3 TypeScript template using esbuild.",
-    "version": "1.2.1",
-    "main": "index.js",
+    "name": "orechard-outlet",
+    "version": "1.0.0",
+    "description": "Orechard Outlet Game",
+    "main": "main.js",
     "scripts": {
-        "dev": "node log.js dev & node esbuild/dev.server.mjs -w",
-        "build": "node log.js build & node esbuild/build.prod.mjs",
-        "dev-nolog": "node esbuild/dev.server.mjs -w",
-        "build-nolog": "node esbuild/build.prod.mjs"
+      "start": "http-server ./docs -p 8080",
+      "build": "node esbuild.config.mjs",
+      "dev": "http-server ./docs -p 8080"
     },
-    "author": "Phaser Studio <support@phaser.io> (https://phaser.io/)",
     "repository": {
-        "type": "git",
-        "url": "git+https://github.com/phaserjs/template-esbuild-ts.git"
+      "type": "git",
+      "url": "https://github.com/phaserjs/template-esbuild-ts"
     },
     "bugs": {
-        "url": "https://github.com/phaserjs/template-esbuild-ts/issues"
+      "url": "https://github.com/phaserjs/template-esbuild-ts/issues"
     },
     "homepage": "https://github.com/phaserjs/template-esbuild-ts#readme",
     "license": "MIT",
     "dependencies": {
-        "i18next": "^24.0.5",
-        "i18next-browser-languagedetector": "^8.0.1",
-        "i18next-http-backend": "^3.0.1",
-        "phaser": "^3.87.0",
-        "yaml": "^2.6.1"
+      "@capacitor/android": "^6.2.0",
+      "@capacitor/cli": "^6.2.0",
+      "@capacitor/core": "^6.2.0",
+      "@capacitor/ios": "^6.2.0",
+      "i18next": "^24.0.5",
+      "i18next-browser-languagedetector": "^8.0.1",
+      "i18next-http-backend": "^3.0.1",
+      "phaser": "^3.87.0",
+      "yaml": "^2.6.1",
+      "http-server": "^0.12.3"
     },
     "devDependencies": {
-        "@jgoz/esbuild-plugin-livereload": "^2.0.5",
-        "esbuild": "^0.21.2",
-        "esbuild-plugin-clean": "^1.0.1",
-        "esbuild-plugin-copy": "^2.1.1",
-        "esbuild-plugin-inline-image": "^0.0.9",
-        "esbuild-serve": "^1.0.1"
+      "@babel/core": "^7.26.0",
+      "@babel/preset-env": "^7.26.0",
+      "@babel/plugin-syntax-dynamic-import": "^7.8.3",
+      "@jgoz/esbuild-plugin-livereload": "^2.0.5",
+      "esbuild": "^0.21.2",
+      "esbuild-plugin-babel": "^0.2.3",
+      "esbuild-plugin-clean": "^1.0.1",
+      "esbuild-plugin-copy": "^2.1.1",
+      "esbuild-plugin-inline-image": "^0.0.9",
+      "esbuild-serve": "^1.0.1"
     }
-}
+  }
