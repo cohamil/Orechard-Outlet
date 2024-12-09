@@ -38,12 +38,36 @@ export class Preloader extends Scene
         this.load.spritesheet('lilac', 'bronze.png', spriteSheetConfig);
         this.load.spritesheet('daisy', 'gold.png', spriteSheetConfig);
         this.load.spritesheet('tulip', 'diamond.png', spriteSheetConfig);
+        this.load.spritesheet('playerAnimations', 'player.png', spriteSheetConfig);
     }
 
     create ()
     {
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
+        this.anims.create({
+            key: 'walk-right',
+            frames: this.anims.generateFrameNumbers('playerAnimations', { 
+                frames: [3,4,5,6,7,0,1,2,3],
+            }),
+            frameRate: 10
+        });
+
+        this.anims.create({
+            key: 'walk-down',
+            frames: this.anims.generateFrameNumbers('playerAnimations', { 
+                frames: [11,12,13,14,15,8,9,10,11],
+             }), // Second row
+            frameRate: 10
+        });
+
+        this.anims.create({
+            key: 'walk-up',
+            frames: this.anims.generateFrameNumbers('playerAnimations', { 
+                frames: [19,20,21,22,23,16,17,18,11],
+             }), // Third row
+            frameRate: 10
+        });
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
         this.scene.start('MainMenu');
