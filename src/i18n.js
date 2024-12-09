@@ -68,6 +68,8 @@ i18n
           "move_mode": "Move\nMode",
           "plant_mode": "Plant\nMode",
           "inventory": "Inventory:",
+          "order": "Order:",
+          "submit_order": "Submit\nOrder",
         }
       },
       zh: {
@@ -133,6 +135,8 @@ i18n
           "move_mode": "移动\n模式",
           "plant_mode": "种植\n模式",
           "inventory": "库存：",
+          "order": "顺序：",
+          "submit_order": "提交\n订单",
         }
       },
       he: {
@@ -198,6 +202,8 @@ i18n
           "move_mode": "מצב\nתנועה",
           "plant_mode": "מצב\nצמח",
           "inventory": "מלאי:",
+          "order": "סדר:",
+          "submit_order": "שלח\nהזמנה",
         }
       }
     },

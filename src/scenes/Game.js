@@ -30,7 +30,7 @@ export class Game extends Scene {
         ];
         this.weatherSchedule = { next: () => null, getNext: () => null }; // Initialize
         this.gridSize = 0; // Number of rows and columns
-        this.numMaxedPlants = 0;
+        this.numOrdersCompleted = 0;
         this.MAX_SPECIES_LENGTH = 8;
         this.resourceModifier = { sun: 1, water: 1 };
         this.grid = [];
@@ -51,6 +51,7 @@ export class Game extends Scene {
             leftButton: null,
             rightButton: null,
             inventoryDisplay: null,
+            shopDisplay: null,
         };
     }
 
@@ -78,7 +79,7 @@ export class Game extends Scene {
                 this.gridSize = this.gameSettings.gridSize;
                 this.sunProbability = this.gameSettings.defaultSunProbability;
                 this.waterProbability = this.gameSettings.defaultWaterProbability;
-                gameManager.setPlantsWinCon(this.gameSettings.plantsToMax);
+                gameManager.setOrdersCompletedWinCon(this.gameSettings.ordersToComplete);
             } catch (error) {
                 console.error('Error parsing YAML file. Using defaults.');
                 this.setDefaultSettings();
@@ -135,7 +136,7 @@ export class Game extends Scene {
 
         // Reset Win Condition if not loaded
         if (!autoSaveLoaded) {
-            this.numMaxedPlants = 0;
+            this.numOrdersCompleted = 0;
         }
 
         // Create UI elements
@@ -144,7 +145,7 @@ export class Game extends Scene {
 
     getGrid() { return this.grid; }
     getPlayerPosition() { return this.playerPosition; }
-    getNumMaxedPlants() { return this.numMaxedPlants; }
+    getNumOrdersCompleted() { return this.numOrdersCompleted; }
     getUndoable() { return this.undoable; }
     getRedoable() { return this.redoable; }
     getGameSettings() { return this.gameSettings; }
@@ -174,10 +175,11 @@ export class Game extends Scene {
 
         // Load state
         this.playerPosition = { ...savedState.playerPosition };
-        this.numMaxedPlants = savedState.numMaxedPlants || 0;
+        this.numOrdersCompleted = savedState.numOrdersCompleted || 0;
         this.undoable = savedState.undoable || [];
         this.redoable = savedState.redoable || [];
         this.plantsManager.setHarvestCountArray(savedState.harvestCount);
+        gameManager.setCurrentOrder(savedState.currentOrder);
 
         // Weather after grid
         this.weatherSchedule = this.createIterator(this.gameSettings.weatherSchedule);
@@ -193,7 +195,7 @@ export class Game extends Scene {
         this.setDefaultSettings();
         this.initializeCellResources();
         this.createPlayer();
-        this.numMaxedPlants = 0;  // Set maxed plants to 0
+        this.numOrdersCompleted = 0;  // Set orders completed to 0
         gameManager.setPlayer(this.player);
         gameManager.drawGrid(this, this.gridSize, this.cellSize, this.grid, this.plantsManager);
     }
@@ -346,6 +348,24 @@ export class Game extends Scene {
             stroke: '#000000', strokeThickness: 6
         }));
 
+        // Create shop display
+        this.UIElements.shopDisplay = this.add.container(0, 0);
+        this.UIElements.shopDisplay.add(this.add.text(840, 0, i18n.t('order'), {
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }));
+        this.UIElements.shopDisplay.add(this.add.text(840, 50, gameManager.getOrderDisplay(), {
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }));
+        this.UIElements.shopDisplay.add(new TextButton(this, 840, 200, i18n.t('submit_order'), {
+            fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6
+        }, () => {
+            console.log("Order submitted.");
+        }));
+
+
         gameManager.setUIElements(this.UIElements);
     }
 
@@ -409,7 +429,7 @@ export class Game extends Scene {
             Array.isArray(state.undoable) &&
             Array.isArray(state.redoable) &&
             // Validate maxed plants count
-            typeof state.numMaxedPlants === 'number'
+            typeof state.numOrdersCompleted === 'number'
         );
     }
 
@@ -454,10 +474,11 @@ export class Game extends Scene {
                 const currentCell = this.grid[row][col];
                 // Plant growth mechanics
                 if (currentCell.plant) {
-                    this.numMaxedPlants = this.plantsManager.updatePlantGrowth({ row: row, col: col }, this.numMaxedPlants, this.grid);
+                    this.numOrdersCompleted = this.plantsManager.updatePlantGrowth({ row: row, col: col }, this.numOrdersCompleted, this.grid);
+                    //this.plantsManager.updatePlantGrowth({ row: row, col: col }, this.grid);
                 }
                 // Check for the win condition
-                if (this.numMaxedPlants === gameManager.getPlantsWinCon()) {
+                if (this.numOrdersCompleted === gameManager.getOrdersCompletedWinCon()) {
                     this.scene.start('GameOver');
                     this.playerPosition = { row: 0, col: 0 };
                     return;
