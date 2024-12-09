@@ -58,7 +58,7 @@ export class Preloader extends Scene
             frames: this.anims.generateFrameNumbers('playerAnimations', { 
                 frames: [11,12,13,14,15,8,9,10,11],
              }), // Second row
-            frameRate: 10
+            frameRate: 20
         });
 
         this.anims.create({
