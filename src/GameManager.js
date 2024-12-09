@@ -4,13 +4,14 @@ class GameManager extends Phaser.Data.DataManager {
     constructor() {
         super(new Phaser.Events.EventEmitter());
         this.isPlaying = false;
-        this.MAXED_PLANTS_WIN_CONDITION = 5;
+        this.ORDERS_COMPLETED_WIN_CONDITION = 5;
         this.autoSaveKey = 'game_autosave';
         this.confirmLoad = null;
         this.player = null;
         this.UIElements = null;
         this.game = null;
         this.gameSet = false;
+        this.currentOrder = null;
     }
 
     setGame(game) {
@@ -30,12 +31,12 @@ class GameManager extends Phaser.Data.DataManager {
         return this.isPlaying;
     }
 
-    setPlantsWinCon(value) {
-        this.MAXED_PLANTS_WIN_CONDITION = value;
+    setOrdersCompletedWinCon(value) {
+        this.ORDERS_COMPLETED_WIN_CONDITION = value;
     }
 
-    getPlantsWinCon() {
-        return this.MAXED_PLANTS_WIN_CONDITION;
+    getOrdersCompletedWinCon() {
+        return this.ORDERS_COMPLETED_WIN_CONDITION;
     }
 
     setConfirmLoad(value) {
@@ -52,6 +53,18 @@ class GameManager extends Phaser.Data.DataManager {
 
     setPlayer(player) {
         this.player = player;
+    }
+
+    getCurrentOrder() {
+        return this.currentOrder;
+    }
+
+    setCurrentOrder(order) {
+        this.currentOrder = order;
+    }
+
+    getOrderDisplay() {
+        return "test";
     }
 
     setUIElements(UIElements) {

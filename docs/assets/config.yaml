@@ -1,7 +1,7 @@
 # Set Dimensions of playable Grid. Grid is always square.
 gridSize: 10
-# Win Condition: number of plants at max level needed at start of a new turn
-plantsToMax: 5
+# Win Condition: number of orders to complete
+ordersToComplete: 5
 # Probability of Resources in each cell for every new turn
 defaultSunProbability: 0.4
 defaultWaterProbability: 0.4

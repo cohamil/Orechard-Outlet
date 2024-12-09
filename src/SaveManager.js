@@ -36,10 +36,11 @@ export class SaveManager extends Phaser.Data.DataManager {
         const gameState = {
             grid: this.serializeGrid(this.game.getGrid()),
             playerPosition: { ...this.game.getPlayerPosition() },
-            numMaxedPlants: this.game.getNumMaxedPlants(),
+            numOrdersCompleted: this.game.getNumOrdersCompleted(),
             undoable: JSON.parse(JSON.stringify(this.game.getUndoable())),
             redoable: JSON.parse(JSON.stringify(this.game.getRedoable())),
             harvestCount: JSON.parse(JSON.stringify(this.game.getHarvestCount())),
+            currentOrder: this.game.getCurrentOrder(),
             gameSettings: {
                 ...this.game.getGameSettings(),
                 weatherSchedule: this.game.getWeatherSchedule() // Ensure schedule is saved
