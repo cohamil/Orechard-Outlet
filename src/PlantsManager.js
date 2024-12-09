@@ -123,10 +123,10 @@ export class PlantsManager {
     }
 
     // Update plant growth mechanics
-    updatePlantGrowth(cell, numMaxedPlants, grid) {
+    updatePlantGrowth(cell, grid) {
         const cellResource = grid[cell.row][cell.col];
         const plant = cellResource.plant;
-        if (!plant || plant.growthLevel === plant.maxGrowthLevel) return numMaxedPlants;
+        if (!plant || plant.growthLevel === plant.maxGrowthLevel) return;
         const condition = plant.growthConditions[plant.growthLevel];
         if (
             cellResource.water >= condition.requiredWater &&
@@ -134,12 +134,8 @@ export class PlantsManager {
             (condition.requiredNeighbors === -1 || condition.requiredNeighbors === this.checkAdjacentFlowers(cell, grid))
         ) {
             plant.growthLevel += 1;
-            if (plant.growthLevel === plant.maxGrowthLevel) {
-                numMaxedPlants += 1;
-            }
             cellResource.water -= 1;
         }
-        return numMaxedPlants;
     }
 
     // Draw plants on the grid
