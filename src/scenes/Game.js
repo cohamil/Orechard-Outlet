@@ -25,8 +25,7 @@ export class Game extends Scene {
         // Default growth conditions for plants
         this.defaultGrowthConditions = [
             { requiredSun: 1, requiredWater: 1, requiredNeighbors: -1 },
-            { requiredSun: 1, requiredWater: 2, requiredNeighbors: -1 },
-            { requiredSun: 1, requiredWater: 2, requiredNeighbors: 0 }
+            { requiredSun: 1, requiredWater: 2, requiredNeighbors: 0 },
         ];
         this.weatherSchedule = { next: () => null, getNext: () => null }; // Initialize
         this.gridSize = 0; // Number of rows and columns
@@ -347,6 +346,10 @@ export class Game extends Scene {
             fontFamily: 'Arial Black', fontSize: 32, color: '#ffffff',
             stroke: '#000000', strokeThickness: 6
         }));
+        // Display Sprites
+        this.UIElements.inventoryDisplay.add(this.add.sprite(895, 494, 'lilac', 2));
+        this.UIElements.inventoryDisplay.add(this.add.sprite(895, 573, 'daisy', 2));
+        this.UIElements.inventoryDisplay.add(this.add.sprite(895, 655, 'tulip', 2));
 
         // Create shop display
         this.UIElements.shopDisplay = this.add.container(0, 0);
@@ -529,10 +532,11 @@ export class Game extends Scene {
         // Place the player at the initial position (row 0, col 0)
         const x = startX + this.playerPosition.col * this.cellSize + this.cellSize / 2;
         const y = startY + this.playerPosition.row * this.cellSize + this.cellSize / 2;
-        this.player = this.add
+        /*this.player = this.add
             .rectangle(x, y, this.cellSize * 0.5, this.cellSize * 0.5, 0xff0000)
             .setOrigin(0.5)
-            .setDepth(10); // Ensure player is drawn on top of grid cells
+            .setDepth(10); // Ensure player is drawn on top of grid cells*/
+        this.player = this.add.sprite(x, y, 'playerAnimations', 11).setOrigin(0.5).setScale(3).setDepth(10);
     }
 
     repositionPlayer() {
